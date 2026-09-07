@@ -14,11 +14,12 @@ logs/slurm/*.err
 # sets, MMseqs2 cluster tables, ANI matrices, staged UniProt dumps) has no
 # business being versioned alongside code. Stays on /bigdata; distributed via
 # GitHub Releases/Zenodo/etc instead (see README.md).
+#
+# NOTE (2026-09-07): results/ living here is a holdover from before the
+# DeltaGain / DeltaGain_Fungi split (see README.md) — this repo is meant to
+# be the pipeline code only, with project-run output belonging in
+# DeltaGain_Fungi. Left in place for now because a real run is actively
+# writing here; move results/ (and work/) to DeltaGain_Fungi once that run
+# completes, rather than mid-run.
 results/
 lib/uniprot_fungi/
-
-# Quarto's local render cache/scratch (reports/ is the source, docs/ is the
-# published output committed to git — this is neither).
-reports/.quarto/
-reports/_site/
-/.quarto/

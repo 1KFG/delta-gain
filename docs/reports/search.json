@@ -1,9 +1,0 @@
-[
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "DeltaGain: Report Overview",
-    "section": "",
-    "text": "Placeholder — no pipeline results are rendered here yet.\nOnce Stage 1 (genome classification) and Stage 3 (protein novelty) have real run output under ../results/, this page and its siblings will summarize:\n\nGenome classification counts (redundant strain / novel strain / label mismatch / candidate novel species)\nProtein novelty screen results, per novelty axis (new fold / new domain architecture / new family member / taxonomic breadth / lineage expansion)\nUMAP/embedding-space figures, rarefaction curves, enrichment tables\n\nSee the design doc and project README for the full plan."
-  }
-]

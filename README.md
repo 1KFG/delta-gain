@@ -16,11 +16,39 @@ expansions of known gene families (secondary metabolites, effectors,
 CAZymes, etc.) — five separate axes, not one novelty number. See the design
 doc for the full rationale.
 
+## This is the pipeline code repo — not where results/reports live
+
+As of 2026-09-07, this project split into two repos, the way an nf-core-style
+pipeline separates from the project instances that run it:
+
+- **`DeltaGain`** (this repo, `1KFG/delta-gain`) — the reusable pipeline
+  itself: `nextflow.config`, the entry `.nf` scripts, `modules/`, `lib/`,
+  `bin/`, `conf/`, and `tests/` (stub-validation data for the pipeline logic,
+  not project results).
+- **[`DeltaGain_Fungi`](https://github.com/1KFG/delta-gain-fungi)**
+  (`1KFG/delta-gain-fungi`) — the project instance that runs this pipeline
+  against the Fungi_BFD dataset specifically. `docs/` (the results website,
+  served at [dg.fungalgenomes.org](https://dg.fungalgenomes.org)),
+  `reports/` (Quarto report source), and eventually `results/`/project-
+  specific params all live there, not here.
+
+**Implication for `conf/`:** the current profile configs still hardcode
+Fungi_BFD-specific paths (`Fungi_BFD_runs/samples.csv`, `input_clean_genomes/`,
+`nr_cluster_seq.dmnd`, etc.) directly in this repo's tracked config — a
+holdover from before the split. The intended end state is for this repo to
+carry generic parameter *names* with placeholder/no defaults, and for
+`DeltaGain_Fungi` to supply the real paths via its own `-params-file`. That
+refactor hasn't happened yet; treat the current hardcoded defaults as
+Fungi_BFD-specific until it does.
+
+`results/` and `work/` are also still here (see `.gitignore`'s note) rather
+than in `DeltaGain_Fungi`, because a real pipeline run was actively writing to
+them at split time — move them over once that run completes, not mid-run.
+
 ## Design doc
 
 `/bigdata/stajichlab/shared/projects/BFD/Ideas/protein_novelty_esm2_plan.md`
-— living plan, includes the Fable review and revisions. This folder is where
-the pipeline is actually built and run.
+— living plan, includes the Fable review and revisions.
 
 ## Two separate reference needs — don't conflate them
 
@@ -183,4 +211,6 @@ the design doc.
 - `conf/` — per-stage profile configs (`profile_genome_classify.config`) +
   `test.config` for `-stub-run`
 - `tests/data/` — tiny synthetic samples.csv + genomes for stub validation
-- `results/`, `logs/`, `work/` (gitignored) — created on first real run
+- `results/`, `logs/`, `work/` (gitignored) — created on first real run;
+  temporarily still here rather than in `DeltaGain_Fungi` (see the repo-split
+  section above) because a run was in flight when the split happened
