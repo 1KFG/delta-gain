@@ -12,6 +12,11 @@
 
 process MMSEQS_LINCLUST {
     label 'mmseqs_linclust'
+    // Missing until 2026-09-07: the real run completed successfully but its
+    // output only existed in work/ (never copied out) until this was added
+    // -- caught after the fact, output recovered manually from the work dir
+    // for that run. Don't repeat for future runs.
+    publishDir "${params.outdir}", mode: 'copy'
 
     input:
         path(combined_fasta)
