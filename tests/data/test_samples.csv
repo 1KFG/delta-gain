@@ -1,0 +1,4 @@
+ASMID,SPECIES_IN,STRAIN,BIOPROJECT,NCBI_TAXONID,BUSCO_LINEAGE,PHYLUM,SUBPHYLUM,CLASS,SUBCLASS,ORDER,FAMILY,GENUS,SPECIES,TRANSL_TABLE,LOCUSTAG
+GCF_TEST001,Testus fungus A,A1,PRJNATEST1,9999901,fungi_odb12,Ascomycota,,Sordariomycetes,,Hypocreales,,Testus,Testus fungus,1,TFA00001
+GCF_TEST002,Testus fungus B,B1,PRJNATEST2,9999902,fungi_odb12,Ascomycota,,Sordariomycetes,,Hypocreales,,Testus,Testus fungus,1,TFA00002
+GCF_TEST003,Novus fungus,N1,PRJNATEST3,9999903,fungi_odb12,Basidiomycota,,Agaricomycetes,,Agaricales,,Novus,Novus fungus,1,NFA00001

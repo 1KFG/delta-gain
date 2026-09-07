@@ -1,0 +1,19 @@
+# Jekyll config for GitHub Pages (served from main:/docs).
+#
+# GitHub Pages runs Jekyll by default -- no extra setup needed for .md files
+# to render as HTML. This just picks a theme from GitHub Pages' supported
+# theme list (https://pages.github.com/themes/) so index.md above doesn't
+# render as bare unstyled HTML.
+#
+# Quarto-rendered pages (reports/ -> docs/reports/) are already static HTML
+# with no Jekyll front matter, so Jekyll passes them through unprocessed --
+# both can coexist in docs/ with no conflict.
+
+title: DeltaGain
+description: Quantifying the annotation/novelty yield of large-scale fungal genome sequencing
+theme: jekyll-theme-minimal
+
+# Jekyll ignores dotfiles and a few reserved directory names by default; none
+# of Quarto's output (docs/reports/*) matches those, so no `include:` /
+# `keep_files:` override should be needed. Revisit only if a Quarto-generated
+# supporting-files folder ever gets silently dropped from the built site.

@@ -1,0 +1,17 @@
+---
+title: "DeltaGain: Report Overview"
+---
+
+Placeholder — no pipeline results are rendered here yet.
+
+Once Stage 1 (genome classification) and Stage 3 (protein novelty) have real
+run output under `../results/`, this page and its siblings will summarize:
+
+- Genome classification counts (redundant strain / novel strain / label
+  mismatch / candidate novel species)
+- Protein novelty screen results, per novelty axis (new fold / new domain
+  architecture / new family member / taxonomic breadth / lineage expansion)
+- UMAP/embedding-space figures, rarefaction curves, enrichment tables
+
+See the [design doc](https://github.com/1KFG/delta-gain) and project README
+for the full plan.

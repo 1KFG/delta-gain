@@ -1,0 +1,24 @@
+work/
+tests/work/
+tests/output/
+.nextflow/
+.nextflow.log*
+logs/nextflow/*.html
+logs/nextflow/*.txt
+logs/slurm/*.out
+logs/slurm/*.err
+
+# Pipeline outputs and staged reference databases: large, reproducible from
+# the pipeline + upstream sources, and not meant to live in git history.
+# GitHub hard-rejects any file >100MB, and even under that this data (FASTA
+# sets, MMseqs2 cluster tables, ANI matrices, staged UniProt dumps) has no
+# business being versioned alongside code. Stays on /bigdata; distributed via
+# GitHub Releases/Zenodo/etc instead (see README.md).
+results/
+lib/uniprot_fungi/
+
+# Quarto's local render cache/scratch (reports/ is the source, docs/ is the
+# published output committed to git — this is neither).
+reports/.quarto/
+reports/_site/
+/.quarto/
