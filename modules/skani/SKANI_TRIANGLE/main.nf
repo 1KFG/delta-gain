@@ -9,12 +9,27 @@ process SKANI_TRIANGLE {
     tag    { comp_id }
     label  'skani'
 
-    cpus   { skaniCpusFor(genome_list.countLines()) }
-    memory { skaniMemoryFor(genome_list.countLines(), task.attempt) }
-    time   { skaniTimeFor(genome_list.countLines(), task.attempt) }
+    // n_genomes passed as an explicit val(), not derived by reading
+    // genome_list inside these closures -- same convention already
+    // established in Fungi_BFD/nextflow/modules/ani/compare/SKANI_COMPARE
+    // ("passed as an explicit val(n_genomes) channel element so the resource
+    // directive closure can use it reliably at task-submission time").
+    // Confirmed live 2026-09-07 why the alternative doesn't work: calling
+    // .countLines() (a Nextflow-only Path extension) on the process input
+    // inside a resource closure throws
+    // java.nio.file.ProviderMismatchException, and even forcing
+    // .toFile().readLines().size() then fails with "No such file or
+    // directory" -- resource directives are evaluated before the task's own
+    // file staging happens, so reading file content from an input path at
+    // that point is unreliable regardless of API used. Computing the count
+    // in Groovy at channel-construction time (see genome_classify.nf) and
+    // passing it as a plain value sidesteps the whole class of problem.
+    cpus   { skaniCpusFor(n_genomes) }
+    memory { skaniMemoryFor(n_genomes, task.attempt) }
+    time   { skaniTimeFor(n_genomes, task.attempt) }
 
     input:
-        tuple val(comp_id), path(genome_list)
+        tuple val(comp_id), val(n_genomes), path(genome_list)
 
     output:
         tuple val(comp_id), path("${comp_id}.skani.tsv")

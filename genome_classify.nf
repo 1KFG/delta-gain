@@ -64,9 +64,15 @@ workflow {
     FIND_COMPONENTS(MASH_PREFILTER_GLOBAL.out, samples_csv)
 
     // Fan out: one SKANI_TRIANGLE task per multi-member component.
+    // n_genomes computed here (Groovy, at channel-construction time -- the
+    // file legitimately exists on disk by the time this .map{} runs, since
+    // FIND_COMPONENTS has already completed) and passed as an explicit
+    // val(), NOT re-derived inside SKANI_TRIANGLE's resource-directive
+    // closures -- see that module's header comment for why the latter is
+    // unreliable.
     component_genomes_ch = FIND_COMPONENTS.out.component_genome_lists
         .flatten()
-        .map { f -> tuple(f.baseName.tokenize('.')[0], f) }
+        .map { f -> tuple(f.baseName.tokenize('.')[0], f.toFile().readLines().size(), f) }
 
     SKANI_TRIANGLE(component_genomes_ch)
 
