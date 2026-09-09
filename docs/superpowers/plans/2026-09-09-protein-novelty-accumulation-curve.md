@@ -112,17 +112,35 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 **Files:**
 - Create: `bin/version_tag.py`
+- Create: `tests/conftest.py`
 - Test: `tests/test_version_tag.py`
 
 **Interfaces:**
 - Produces: `build_version_tag(fields: dict, prefix: str) -> str` — `fields` is an ordered dict of human-readable identifying values (e.g. `{"date": "20260909", "n": "11024", "params": "mmseqs95c90"}`); returns e.g. `"bfd-v20260909-n11024-mmseqs95c90-a1b2c3d"`. Also `manifest_hash(manifest: dict) -> str` — SHA-256 of the JSON-serialized manifest **with any `version_tag` key removed first**, truncated to 7 hex chars.
+
+- [ ] **Step 0: Create `tests/conftest.py`**
+
+This repo's `bin/` scripts are flat (no `__init__.py`, no package structure — every later task's implementation modules cross-import each other as plain siblings, e.g. `from version_tag import build_version_tag`). Tests need both the repo root and `bin/` on `sys.path` for that same flat-import style to work under pytest's default import mode:
+
+```python
+# tests/conftest.py
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).parent.parent
+for path in (ROOT, ROOT / "bin"):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+```
+
+Every test file in this plan imports its module under test flatly (e.g. `from version_tag import build_version_tag`, never `from bin.version_tag import ...`) — this conftest is what makes that resolve.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
 # tests/test_version_tag.py
 import json
-from bin.version_tag import build_version_tag, manifest_hash
+from version_tag import build_version_tag, manifest_hash
 
 def test_manifest_hash_excludes_version_tag_field():
     manifest_without_tag = {"date": "20260909", "n": 100}
@@ -194,7 +212,7 @@ Expected: PASS (4 tests)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add bin/version_tag.py tests/test_version_tag.py
+git add bin/version_tag.py tests/conftest.py tests/test_version_tag.py
 git commit -m "Add shared version-tag builder for provenance manifests
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
@@ -233,7 +251,7 @@ This release contains the following:
 
 ```python
 # tests/test_parse_uniprot_relnotes.py
-from bin.parse_uniprot_relnotes import parse_relnotes
+from parse_uniprot_relnotes import parse_relnotes
 
 def test_parses_real_relnotes_format():
     text = open("tests/data/accumulation/relnotes_excerpt.txt").read()
@@ -249,7 +267,7 @@ def test_raises_on_unparseable_text():
 
 ```python
 # tests/test_build_uniprot_manifest.py
-from bin.build_uniprot_manifest import build_uniprot_manifest
+from build_uniprot_manifest import build_uniprot_manifest
 
 def test_manifest_has_required_fields_and_tag():
     release_info = {"release": "2026_03", "release_date": "2026-09-02"}
@@ -414,7 +432,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 ```python
 # tests/test_build_cluster_manifest.py
-from bin.build_cluster_manifest import build_cluster_manifest
+from build_cluster_manifest import build_cluster_manifest
 
 def test_manifest_records_screen_out_reasons_separately():
     manifest = build_cluster_manifest(
@@ -569,7 +587,7 @@ def _write_qc_fixtures(tmp_path):
 ```python
 # tests/test_build_cluster_incidence_matrix.py (continued)
 from pathlib import Path
-from bin.build_cluster_incidence_matrix import build_incidence_matrix
+from build_cluster_incidence_matrix import build_incidence_matrix
 
 FIXTURES = Path("tests/data/accumulation")
 
@@ -881,7 +899,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 ```python
 # tests/test_lib_accumulation_walk.py
-from bin.lib_accumulation import run_permutation, run_all_permutations
+from lib_accumulation import run_permutation, run_all_permutations
 
 ASMID_CLUSTERS = {
     "A": {"c1", "c2"},
@@ -1003,7 +1021,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 ```python
 # tests/test_lib_accumulation_clade.py
-from bin.lib_accumulation import run_all_permutations, aggregate_clade_contribution
+from lib_accumulation import run_all_permutations, aggregate_clade_contribution
 
 ASMID_CLUSTERS = {"A": {"c1", "c2"}, "B": {"c2", "c3"}, "C": {"c4"}}
 EXTERNAL_STATUS = {"c1": "strong_hit", "c2": "no_hit", "c3": "no_hit", "c4": "weak_hit"}
@@ -1109,7 +1127,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```python
 # tests/test_lib_accumulation_fit.py
 import random
-from bin.lib_accumulation import fit_power_law_per_permutation
+from lib_accumulation import fit_power_law_per_permutation
 
 def _synthetic_walk(n, kappa, alpha, noise_seed):
     """Build a walk whose new_internal_count(N) exactly follows
@@ -1221,7 +1239,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `incidence_matrix.parquet`, `cluster_external_status.parquet`, `genome_metadata.parquet` (Task 5); `run_all_permutations`, `aggregate_clade_contribution`, `fit_power_law_per_permutation` (Tasks 6-8).
 - Produces (files): `accumulation_curve_summary.tsv`, `pangenome_powerlaw_fit.tsv`, `clade_contribution.tsv`, `permutation_marginals.parquet` (raw per-permutation per-genome records, Parquet+zstd — the "large intermediate" the storage policy targets for `$SCRATCH`; also the input every validation task below needs).
-- Flags: `--n-permutations` (default 1000), `--min-clade-n` (default 10, must match Task 5's value used to build `genome_metadata.parquet`), `--seed` (default 0), `--cap-per-species N` (optional, validation #6), `--version-tag` (required, stamped into every output's header comment / filename prefix).
+- Flags: `--n-permutations` (default 1000), `--seed` (default 0), `--version-tag` (required, stamped into every output's header comment / filename prefix). No `--min-clade-n` flag here: clade assignment is already baked into `genome_metadata.parquet`'s `clade_rank`/`clade_label` columns by Task 5, so this CLI just reads them. No `--cap-per-species` flag either — that (validation #6) is explicitly deferred; see "Deliberately out of scope" at the end of this plan.
 
 - [ ] **Step 1: Write the failing test** (end-to-end on Task 5's fixtures)
 
@@ -1236,7 +1254,7 @@ import csv
 def test_cli_runs_end_to_end_and_writes_expected_outputs(tmp_path):
     # Build the incidence-matrix inputs using Task 5's builder directly,
     # reusing its fixtures, then feed them into the CLI under test.
-    from bin.build_cluster_incidence_matrix import build_incidence_matrix
+    from build_cluster_incidence_matrix import build_incidence_matrix
     import pyarrow.parquet as pq2
     from pathlib import Path
 
@@ -1432,7 +1450,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 # tests/test_validate_positive_control.py
 import pyarrow as pa
 import pyarrow.parquet as pq
-from bin.validate_positive_control import check_positive_control
+from validate_positive_control import check_positive_control
 
 def test_redundant_strain_conditioned_on_ani_partner_first(tmp_path):
     # A and B are the same ANI component (comp_1); A is redundant_strain.
@@ -1467,12 +1485,15 @@ def test_redundant_strain_conditioned_on_ani_partner_first(tmp_path):
     assert result["violations"] == []
 
 def test_detects_a_real_violation():
+    # B (A's ANI-component partner) is inserted first (position 1), so this
+    # IS a valid conditioned observation for A -- A's 3/3-protein marginal
+    # at position 2 is a genuine violation, not a missing-data non-event.
     raw = pa.table({
-        "permutation_id": [0],
-        "asmid": ["A"],
-        "position": [2],
-        "new_internal_count": [3],  # 3/3 proteins "new" even though conditioned -> a bug signal
-        "new_external_count": [0],
+        "permutation_id": [0, 0],
+        "asmid": ["B", "A"],
+        "position": [1, 2],
+        "new_internal_count": [2, 3],  # 3/3 proteins "new" even though conditioned -> a bug signal
+        "new_external_count": [0, 0],
     })
     import tempfile, os
     tmp = tempfile.mkdtemp()
@@ -1623,7 +1644,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 # tests/test_check_qc_confounds.py
 import pyarrow as pa
 import pyarrow.parquet as pq
-from bin.check_qc_confounds import compute_qc_confound_correlations
+from check_qc_confounds import compute_qc_confound_correlations
 
 def test_detects_perfect_correlation_with_proteome_size(tmp_path):
     # 3 genomes, marginal contribution engineered to scale exactly with
@@ -1867,7 +1888,7 @@ against synthetic data now.
 ```python
 # tests/test_plot_accumulation_plotly.py
 import pandas as pd
-from bin.plot_accumulation_plotly import build_figures
+from plot_accumulation_plotly import build_figures
 
 def test_build_figures_returns_all_three():
     summary_df = pd.DataFrame({
