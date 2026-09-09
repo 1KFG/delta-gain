@@ -85,10 +85,14 @@ count, key clustering params, key QC-threshold params, then a short hash
 and integrity check. Same scheme, adapted per dataset, for the UniProt
 reference side.
 
-**UniProt reference versioning** — `FETCH_UNIPROT_FUNGI_FTP` must record, at
-fetch time, either the UniProt release version string (e.g. `2026_02`) if
-available from the FTP `reldate.txt` alongside the divisions, or the fetch
-date as a fallback when a release string can't be confirmed. The resulting
+**UniProt reference versioning** — `FETCH_UNIPROT_FUNGI_FTP` must download
+`https://ftp.uniprot.org/pub/databases/uniprot/relnotes.txt` into the same
+output folder as the fetched divisions, at fetch time, and parse the current
+release version and date from it (confirmed real content as of 2026-09-09:
+release `2026_03`, made 02-Sept-2026). This is the authoritative release
+identifier — use it as the release version field rather than the fetch date,
+falling back to the fetch date only if `relnotes.txt` is unreachable or its
+format can't be parsed. The resulting
 `uniprot_fungi_nr.fasta` (and any DIAMOND db built from it) gets a manifest
 sidecar (e.g. `uniprot_fungi_nr.manifest.json`) recording:
 - UniProt release version and/or fetch date
