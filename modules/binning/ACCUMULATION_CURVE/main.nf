@@ -7,10 +7,10 @@
 // Python environment provisioning: same mechanism as
 // BUILD_CLUSTER_INCIDENCE_MATRIX (see that module's header comment for the
 // full rationale) -- params.python_container (a generic Python Apptainer/
-// Singularity image) + params.python_pip_cache (a pre-populated, SHARED
-// directory with pyarrow/duckdb/numpy installed once via
-// `pip install --target=...`, prepended to PYTHONPATH at runtime). Both
-// empty by default here; real values belong in the calling profile config.
+// Singularity image) + pip_cache_dir (SETUP_PYTHON_PIP_CACHE's output,
+// this run's own workDir/pip_cache), prepended to PYTHONPATH at runtime.
+// params.python_container is empty by default; real value belongs in the
+// calling profile config.
 
 process ACCUMULATION_CURVE {
     label 'accumulation_curve'
@@ -22,6 +22,7 @@ process ACCUMULATION_CURVE {
         path(external_status)
         path(genome_metadata)
         val(version_tag)
+        val(pip_cache_dir)
 
     output:
         path("accumulation_curve_summary.tsv"), emit: summary
@@ -30,11 +31,9 @@ process ACCUMULATION_CURVE {
         path("permutation_marginals.parquet"), emit: raw_marginals
 
     script:
-    def python_path_prefix = params.python_pip_cache
-        ? "export PYTHONPATH=\"${params.python_pip_cache}:\${PYTHONPATH:-}\"\n    "
-        : ""
     """
-    ${python_path_prefix}${projectDir}/bin/accumulation_curve.py \\
+    export PYTHONPATH="${pip_cache_dir}:\${PYTHONPATH:-}"
+    ${projectDir}/bin/accumulation_curve.py \\
         --incidence-matrix ${incidence_matrix} \\
         --external-status ${external_status} \\
         --genome-metadata ${genome_metadata} \\

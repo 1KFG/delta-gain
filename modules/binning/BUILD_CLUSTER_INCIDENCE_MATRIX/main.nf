@@ -17,15 +17,12 @@
 // supplied by the calling profile config, e.g. DeltaGain_Fungi's -c
 // config, pulled from something like docker://python:3.11-slim into the
 // shared singularity_cache); the container image itself does NOT need
-// pyarrow/duckdb/numpy baked in -- params.python_pip_cache points at a
-// pre-populated, SHARED (persistent, /bigdata-backed -- never $SCRATCH,
-// which is node-local and would need reinstalling per task) directory
-// where those packages were `pip install --target=...`'d once ahead of
-// time; PYTHONPATH is prepended with it at task runtime so the container's
-// python can import them without a custom-built image. Both params are
-// empty by default (undefined here, like params.diamond_container) --
-// real values belong in the calling profile config per the
-// DeltaGain/DeltaGain_Fungi pipeline/data split.
+// pyarrow/duckdb/numpy baked in -- pip_cache_dir (SETUP_PYTHON_PIP_CACHE's
+// output, this run's own workDir/pip_cache) is prepended to PYTHONPATH so
+// the container's python can import them without a custom-built image.
+// params.python_container is empty by default (undefined here, like
+// params.diamond_container) -- real value belongs in the calling profile
+// config per the DeltaGain/DeltaGain_Fungi pipeline/data split.
 
 process BUILD_CLUSTER_INCIDENCE_MATRIX {
     label 'build_cluster_incidence_matrix'
@@ -41,6 +38,7 @@ process BUILD_CLUSTER_INCIDENCE_MATRIX {
         path(asm_stats_parquet)
         path(genome_classification_tsv)
         val(version_tag)
+        val(pip_cache_dir)
 
     output:
         path("incidence_matrix.parquet"), emit: incidence_matrix
@@ -48,11 +46,9 @@ process BUILD_CLUSTER_INCIDENCE_MATRIX {
         path("genome_metadata.parquet"), emit: genome_metadata
 
     script:
-    def python_path_prefix = params.python_pip_cache
-        ? "export PYTHONPATH=\"${params.python_pip_cache}:\${PYTHONPATH:-}\"\n    "
-        : ""
     """
-    ${python_path_prefix}${projectDir}/bin/build_cluster_incidence_matrix.py \\
+    export PYTHONPATH="${pip_cache_dir}:\${PYTHONPATH:-}"
+    ${projectDir}/bin/build_cluster_incidence_matrix.py \\
         --clusters-tsv ${clusters_tsv} \\
         --provenance-tsv ${provenance_tsv} \\
         --novelty-bins-tsv ${novelty_bins_tsv} \\

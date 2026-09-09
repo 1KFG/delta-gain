@@ -69,6 +69,7 @@ include { DIAMOND_CLUSTER; EXTRACT_CLUSTER_REPS } from './modules/dedup/DIAMOND_
 include { COMPARE_CLUSTERINGS }     from './modules/binning/COMPARE_CLUSTERINGS/main.nf'
 include { BUILD_CLUSTER_INCIDENCE_MATRIX } from './modules/binning/BUILD_CLUSTER_INCIDENCE_MATRIX/main.nf'
 include { ACCUMULATION_CURVE }             from './modules/binning/ACCUMULATION_CURVE/main.nf'
+include { SETUP_PYTHON_PIP_CACHE }         from './modules/setup/SETUP_PYTHON_PIP_CACHE/main.nf'
 
 workflow {
     // Small connectivity/content smoke test (REST) -- cheap, safe at any scale.
@@ -140,8 +141,16 @@ workflow {
     // DeltaGain_Fungi's `-c` profile config), and an empty-string path with
     // checkIfExists: true aborts the ENTIRE workflow, not just this branch.
     // With the gate, clearing them simply skips the accumulation-curve
-    // analysis and leaves every pre-existing Stage 3 step running.
-    if (params.bfd_duckdb_busco_parquet && params.genome_classification_tsv) {
+    // analysis and leaves every pre-existing Stage 3 step running. All three
+    // real-data path params PLUS bfd_version_tag are checked (not just two
+    // of the four) -- a run with the data params set but the tag forgotten
+    // would otherwise silently publish to an un-namespaced
+    // "accumulation_" directory, defeating the version-tag namespacing
+    // this pipeline relies on for provenance.
+    if (params.bfd_duckdb_busco_parquet && params.bfd_duckdb_asm_stats_parquet
+            && params.genome_classification_tsv && params.bfd_version_tag) {
+        SETUP_PYTHON_PIP_CACHE()
+
         BUILD_CLUSTER_INCIDENCE_MATRIX(
             MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
             COMBINE_BFD_PROTEINS.out.provenance,
@@ -151,6 +160,7 @@ workflow {
             Channel.fromPath(params.bfd_duckdb_asm_stats_parquet, checkIfExists: true),
             Channel.fromPath(params.genome_classification_tsv, checkIfExists: true),
             params.bfd_version_tag,
+            SETUP_PYTHON_PIP_CACHE.out.pip_cache_dir,
         )
 
         ACCUMULATION_CURVE(
@@ -158,6 +168,7 @@ workflow {
             BUILD_CLUSTER_INCIDENCE_MATRIX.out.external_status,
             BUILD_CLUSTER_INCIDENCE_MATRIX.out.genome_metadata,
             params.bfd_version_tag,
+            SETUP_PYTHON_PIP_CACHE.out.pip_cache_dir,
         )
     }
 
