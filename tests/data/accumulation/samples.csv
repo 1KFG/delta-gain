@@ -2,3 +2,4 @@ ASMID,SPECIES_IN,STRAIN,BIOPROJECT,NCBI_TAXONID,BUSCO_LINEAGE,PHYLUM,SUBPHYLUM,C
 GENOME_A,Foo bar,S1,PRJ1,1,dikarya,Ascomycota,,Dothideomycetes,,Pleosporales,,Foo,Foo bar,1,X1
 GENOME_B,Foo baz,S2,PRJ1,2,dikarya,Ascomycota,,Dothideomycetes,,Pleosporales,,Foo,Foo baz,1,X2
 GENOME_C,Qux quux,S3,PRJ1,3,dikarya,Basidiomycota,,Agaricomycetes,,Agaricales,,Qux,Qux quux,1,X3
+GENOME_D,Corge grault,S4,PRJ1,4,dikarya,Basidiomycota,,Agaricomycetes,,Auriculariales,,Corge,Corge grault,1,X4

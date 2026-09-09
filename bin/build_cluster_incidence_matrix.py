@@ -17,16 +17,6 @@ import pandas as pd
 
 RANK_ORDER = ["FAMILY", "ORDER", "CLASS", "SUBCLASS", "SUBPHYLUM", "PHYLUM"]
 
-# Only the finer ranks are density-gated by min_clade_n -- FAMILY and ORDER
-# are the ranks most likely to be represented by too few sampled genomes to
-# be a useful accumulation-curve grouping. CLASS and coarser ranks are
-# accepted as soon as a label is present: by the time you have rolled up
-# that far, the rank is assumed to already be a broad, well-populated
-# taxonomic unit, so gating it too would leave genomes with a sparse CLASS
-# (as can happen in a small pilot dataset) stuck defaulting all the way to
-# PHYLUM instead of the more informative CLASS label.
-_DENSITY_GATED_RANKS = {"FAMILY", "ORDER"}
-
 
 def _read_clusters(path):
     """MMseqs2 createtsv format: repr_id<TAB>member_id, no header."""
@@ -63,10 +53,15 @@ def _read_external_status(path):
 
 def _read_taxonomy(path):
     tax = {}
+    seen = set()
     with open(path) as fh:
         reader = csv.DictReader(fh)
         for row in reader:
-            tax[row["ASMID"]] = {
+            asmid = row["ASMID"]
+            if asmid in seen:
+                raise ValueError(f"duplicate ASMID in samples.csv: {asmid}")
+            seen.add(asmid)
+            tax[asmid] = {
                 rank: (row[rank] or None)
                 for rank in ["PHYLUM", "SUBPHYLUM", "CLASS", "SUBCLASS",
                              "ORDER", "FAMILY", "GENUS", "SPECIES"]
@@ -76,10 +71,15 @@ def _read_taxonomy(path):
 
 def _read_genome_classification(path):
     info = {}
+    seen = set()
     with open(path) as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         for row in reader:
-            info[row["asmid"]] = {
+            asmid = row["asmid"]
+            if asmid in seen:
+                raise ValueError(f"duplicate ASMID in genome_classification.tsv: {asmid}")
+            seen.add(asmid)
+            info[asmid] = {
                 "component_id": row["component_id"],
                 "cluster_class": row["cluster_class"],
             }
@@ -90,11 +90,8 @@ def _assign_clade(asmid, tax_by_asmid, rank_counts, min_clade_n):
     row = tax_by_asmid.get(asmid, {})
     for rank in RANK_ORDER:
         label = row.get(rank)
-        if not label:
-            continue
-        if rank in _DENSITY_GATED_RANKS and rank_counts[rank].get(label, 0) < min_clade_n:
-            continue
-        return rank, label
+        if label and rank_counts[rank].get(label, 0) >= min_clade_n:
+            return rank, label
     return "PHYLUM", row.get("PHYLUM") or "unclassified"
 
 

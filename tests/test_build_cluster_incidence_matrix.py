@@ -9,10 +9,10 @@ FIXTURES = Path("tests/data/accumulation")
 
 
 def _write_qc_fixtures(tmp_path):
-    busco = pa.table({"ASMID": ["GENOME_A", "GENOME_B", "GENOME_C"],
-                       "complete_pct": [98.5, 97.0, 60.0]})
-    asm = pa.table({"ASMID": ["GENOME_A", "GENOME_B", "GENOME_C"],
-                     "N50_bp": [500000, 480000, 20000]})
+    busco = pa.table({"ASMID": ["GENOME_A", "GENOME_B", "GENOME_C", "GENOME_D"],
+                       "complete_pct": [98.5, 97.0, 60.0, 95.0]})
+    asm = pa.table({"ASMID": ["GENOME_A", "GENOME_B", "GENOME_C", "GENOME_D"],
+                     "N50_bp": [500000, 480000, 20000, 300000]})
     pq.write_table(busco, tmp_path / "busco_genome.parquet")
     pq.write_table(asm, tmp_path / "asm_stats.parquet")
     return tmp_path / "busco_genome.parquet", tmp_path / "asm_stats.parquet"
@@ -38,7 +38,8 @@ def test_incidence_matrix_shape_and_membership(tmp_path):
     assert ("GENOME_A", "GENOME_A__p2") in pairs
     assert ("GENOME_B", "GENOME_B__p2") in pairs
     assert ("GENOME_C", "GENOME_C__p1") in pairs
-    assert len(pairs) == 5
+    assert ("GENOME_D", "GENOME_D__p1") in pairs
+    assert len(pairs) == 6
 
 
 def test_external_status_lookup_keyed_by_cluster_representative(tmp_path):
@@ -76,9 +77,38 @@ def test_genome_metadata_joins_qc_and_taxonomy_and_rolls_up_clade(tmp_path):
     # ORDER=Pleosporales has 2 genomes (>= min_clade_n=2) -> that's the clade rank/label.
     assert meta.loc["GENOME_A", "clade_rank"] == "ORDER"
     assert meta.loc["GENOME_A", "clade_label"] == "Pleosporales"
-    # ORDER=Agaricales has only 1 genome (< min_clade_n) -> rolls up to CLASS.
+    # ORDER=Agaricales has only 1 genome (< min_clade_n), but CLASS=
+    # Agaricomycetes has 2 (GENOME_C + GENOME_D) -> rolls up to CLASS.
     assert meta.loc["GENOME_C", "clade_rank"] == "CLASS"
     assert meta.loc["GENOME_C", "clade_label"] == "Agaricomycetes"
+    # GENOME_D: ORDER=Auriculariales has only 1 genome -> same CLASS rollup.
+    assert meta.loc["GENOME_D", "clade_rank"] == "CLASS"
+    assert meta.loc["GENOME_D", "clade_label"] == "Agaricomycetes"
+
+
+def test_duplicate_asmid_in_samples_csv_raises(tmp_path):
+    import pytest
+    bad_samples = tmp_path / "samples.csv"
+    bad_samples.write_text(
+        "ASMID,SPECIES_IN,STRAIN,BIOPROJECT,NCBI_TAXONID,BUSCO_LINEAGE,"
+        "PHYLUM,SUBPHYLUM,CLASS,SUBCLASS,ORDER,FAMILY,GENUS,SPECIES,"
+        "TRANSL_TABLE,LOCUSTAG\n"
+        "GENOME_A,Foo bar,S1,PRJ1,1,dikarya,Ascomycota,,Dothideomycetes,,"
+        "Pleosporales,,Foo,Foo bar,1,X1\n"
+        "GENOME_A,Foo bar,S1,PRJ1,1,dikarya,Ascomycota,,Dothideomycetes,,"
+        "Pleosporales,,Foo,Foo bar,1,X1\n"  # exact duplicate ASMID row
+    )
+    busco_pq, asm_pq = _write_qc_fixtures(tmp_path)
+    with pytest.raises(ValueError, match="duplicate"):
+        build_incidence_matrix(
+            clusters_tsv=FIXTURES / "bfd_proteins_clusters.tsv",
+            provenance_tsv=FIXTURES / "bfd_proteins_provenance.tsv",
+            novelty_bins_tsv=FIXTURES / "bfd_novelty_bins.tsv",
+            samples_csv=bad_samples,
+            busco_parquet=busco_pq, asm_stats_parquet=asm_pq,
+            genome_classification_tsv=FIXTURES / "genome_classification.tsv",
+            min_clade_n=2,
+        )
 
 
 def test_duplicate_asmid_in_provenance_raises(tmp_path):
