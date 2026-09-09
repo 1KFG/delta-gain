@@ -2210,6 +2210,17 @@ here so they are not rediscovered as surprises during the first real run.
    tool versions) are only meaningful against real scale-up inputs, not
    synthetic fixtures. Follow-up: add a `BUILD_CLUSTER_MANIFEST` process and
    the CLI entry point once this pipeline runs against real scale-up data.
+   Concrete interface now available to fold in when this follow-up lands
+   (per `docs/superpowers/notes/busco-n50-datalake-response.md`, 2026-09-09):
+   Fungi_BFD is adding `tables/_manifest/<table>.json` sidecars per table
+   (`row_count`, `built_at`, `built_by`, `merge_run_id`, `schema_version`,
+   `columns`, `parquet_sha256`) — read these (plain JSON, no extra
+   dependency) and fold `built_at`/`row_count`/`schema_version` into
+   `bfd_cluster_manifest.json` alongside the BUSCO/N50 join, closing the
+   exact auditability gap this manifest layer exists to solve. These
+   sidecar files did not exist on disk as of 2026-09-09 (verified) —
+   do not build a hard dependency on them until Fungi_BFD ships them; read
+   optionally/gracefully in the meantime.
 2. **Memory sizing at scale**: `run_all_permutations` materializes every
    permutation's full walk in memory before any output is written; at the
    production `n_permutations=1000` and the full ~22k-genome scale this could

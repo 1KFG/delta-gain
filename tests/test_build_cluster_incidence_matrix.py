@@ -161,3 +161,28 @@ def test_cluster_missing_from_novelty_bins_raises(tmp_path):
             genome_classification_tsv=FIXTURES / "genome_classification.tsv",
             min_clade_n=2,
         )
+
+
+def test_duplicate_asmid_in_busco_parquet_raises(tmp_path):
+    """Defense-in-depth guard requested by Fungi_BFD's own data-lake
+    response (busco-n50-datalake-response.md, item 2): keep our own
+    fail-loud check even once their upstream ASMID-uniqueness guard lands,
+    same reasoning as this repo's other duplicate-key guards (L-8)."""
+    import pytest
+
+    busco = pa.table({"ASMID": ["GENOME_A", "GENOME_A"], "complete_pct": [98.5, 97.0]})
+    asm = pa.table({"ASMID": ["GENOME_A"], "N50_bp": [500000]})
+    pq.write_table(busco, tmp_path / "busco_genome.parquet")
+    pq.write_table(asm, tmp_path / "asm_stats.parquet")
+
+    with pytest.raises(ValueError, match="duplicate ASMID"):
+        build_incidence_matrix(
+            clusters_tsv=FIXTURES / "bfd_proteins_clusters.tsv",
+            provenance_tsv=FIXTURES / "bfd_proteins_provenance.tsv",
+            novelty_bins_tsv=FIXTURES / "bfd_novelty_bins.tsv",
+            samples_csv=FIXTURES / "samples.csv",
+            busco_parquet=tmp_path / "busco_genome.parquet",
+            asm_stats_parquet=tmp_path / "asm_stats.parquet",
+            genome_classification_tsv=FIXTURES / "genome_classification.tsv",
+            min_clade_n=2,
+        )

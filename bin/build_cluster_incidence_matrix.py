@@ -86,6 +86,23 @@ def _read_genome_classification(path):
     return info
 
 
+def _dict_with_unique_keys(pairs, source_path):
+    """Build a dict from (key, value) pairs, failing loudly on a duplicate
+    key instead of silently keeping the last one -- same fail-loud-on-
+    data-mismatch convention as this file's other readers. Kept as our own
+    defense-in-depth guard even once Fungi_BFD's upstream ASMID-uniqueness
+    check lands on the write side (see docs/superpowers/notes/
+    busco-n50-datalake-response.md, item 2 -- their own recommendation)."""
+    result = {}
+    seen = set()
+    for key, value in pairs:
+        if key in seen:
+            raise ValueError(f"duplicate ASMID in {source_path}: {key}")
+        seen.add(key)
+        result[key] = value
+    return result
+
+
 def _assign_clade(asmid, tax_by_asmid, rank_counts, min_clade_n):
     """Density-adaptive clade assignment with an explicit roll-up label.
 
@@ -177,8 +194,8 @@ def build_incidence_matrix(clusters_tsv, provenance_tsv, novelty_bins_tsv,
     con = duckdb.connect()
     busco = con.execute(f"SELECT ASMID, complete_pct FROM read_parquet('{busco_parquet}')").fetchall()
     asm_stats = con.execute(f"SELECT ASMID, N50_bp FROM read_parquet('{asm_stats_parquet}')").fetchall()
-    complete_pct_by_asmid = dict(busco)
-    n50_by_asmid = dict(asm_stats)
+    complete_pct_by_asmid = _dict_with_unique_keys(busco, busco_parquet)
+    n50_by_asmid = _dict_with_unique_keys(asm_stats, asm_stats_parquet)
 
     genome_meta_rows = []
     for asmid in all_asmids:
