@@ -5,16 +5,20 @@ from validate_positive_control import check_positive_control
 
 
 def test_redundant_strain_conditioned_on_ani_partner_first(tmp_path):
-    # A and B are the same ANI component (comp_1); A is redundant_strain.
+    # A and B are the same ANI component (comp_1) and a genuinely,
+    # symmetrically redundant pair -- each is fully redundant when it
+    # follows the other.
     # Permutation 0: order A,B (A first -> A gets full credit for shared
-    # cluster c2 -- must be EXCLUDED from A's conditioned average).
-    # Permutation 1: order B,A (B first -> A's marginal on c2 is 0, the
-    # correct conditioned observation).
+    # content; B follows A and contributes 0 new -- must be EXCLUDED from
+    # A's conditioned average, since A itself wasn't conditioned here).
+    # Permutation 1: order B,A (B first -> A follows B and contributes 0
+    # new, the correct conditioned observation for A).
     raw = pa.table({
         "permutation_id": [0, 0, 1, 1],
         "asmid": ["A", "B", "B", "A"],
         "position": [1, 2, 1, 2],
-        "new_internal_count": [2, 1, 2, 0],
+        # B fully redundant following A; A fully redundant following B.
+        "new_internal_count": [2, 0, 2, 0],
         "new_external_count": [0, 0, 0, 0],
     })
     pq.write_table(raw, tmp_path / "permutation_marginals.parquet")
@@ -32,7 +36,10 @@ def test_redundant_strain_conditioned_on_ani_partner_first(tmp_path):
         max_marginal_frac=0.05,
     )
     # A's only conditioned observation (permutation 1, B-before-A) is 0 new
-    # clusters -> 0% of A's 3 proteins -> well under 5% -> passes.
+    # clusters -> 0% of A's 3 proteins -> well under 5% -> passes. B's only
+    # conditioned observation (permutation 0, A-before-B) is likewise 0 new
+    # clusters -> 0% -> passes. Both directions of this genuinely redundant
+    # pair pass independently.
     assert result["passed"] is True
     assert result["violations"] == []
 

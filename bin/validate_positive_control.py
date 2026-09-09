@@ -9,22 +9,12 @@ is inserted before its ANI partner and gets full first-discovery credit for
 their shared content, so its unconditional average will not be near zero
 even when the pipeline is correct.
 
-Component representative, not every redundant_strain member independently:
-`classify_genomes.py` labels a genome redundant_strain based on its OWN best
-within-component ANI hit, so two mutual best-ANI-partners in a size-2
-component can BOTH end up labeled redundant_strain. Testing both of them
-independently double-counts a single underlying ANI relationship: in
-permutations where genome X is inserted second, X's conditioned marginal
-reflects the pair's shared content; in permutations where the roles reverse,
-the SAME shared-content relationship shows up again, now as the partner's
-conditioned marginal. These are two views of one relationship, not two
-independent pieces of evidence. So for each ANI component we designate one
-deterministic representative (the alphabetically-first redundant_strain
-asmid) as the tested genome; every other member of that component -- of any
-cluster_class -- still counts as a valid "inserted earlier" anchor, it is
-just never independently tested itself. For the common case of a component
-with a single redundant_strain member, this is a no-op: that lone member is
-its own representative.
+Every redundant_strain genome is tested independently. Two mutual
+best-ANI-partners can both be labeled redundant_strain (see
+`classify_genomes.py`), and testing both is correct, not double-counting:
+"is A redundant given B present" and "is B redundant given A present" are
+two distinct, legitimate questions, and a genuinely, symmetrically redundant
+pair should show near-zero conditioned marginal in BOTH directions.
 """
 import argparse
 import sys
@@ -42,23 +32,18 @@ def check_positive_control(raw_marginals_path, genome_metadata_path, max_margina
     for record in raw:
         by_permutation.setdefault(record["permutation_id"], []).append(record)
 
+    redundant_asmids = {
+        asmid for asmid, meta in genome_meta.items()
+        if meta["cluster_class"] == "redundant_strain"
+    }
     component_of = {asmid: meta["component_id"] for asmid, meta in genome_meta.items()}
 
-    # One tested representative per component (see module docstring); other
-    # same-component genomes are still used as position anchors below, they
-    # are just excluded from `tested_asmids`.
-    redundant_by_component = {}
-    for asmid, meta in genome_meta.items():
-        if meta["cluster_class"] == "redundant_strain":
-            redundant_by_component.setdefault(meta["component_id"], []).append(asmid)
-    tested_asmids = {sorted(asmids)[0] for asmids in redundant_by_component.values()}
-
-    conditioned_marginals = {asmid: [] for asmid in tested_asmids}
+    conditioned_marginals = {asmid: [] for asmid in redundant_asmids}
     for perm_id, records in by_permutation.items():
         position_of = {r["asmid"]: r["position"] for r in records}
         for record in records:
             asmid = record["asmid"]
-            if asmid not in tested_asmids:
+            if asmid not in redundant_asmids:
                 continue
             component = component_of[asmid]
             partner_positions = [
