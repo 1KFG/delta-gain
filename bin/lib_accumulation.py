@@ -42,3 +42,39 @@ def run_all_permutations(asmids, asmid_clusters, external_status,
         rng.shuffle(order)
         walks.append(run_permutation(order, asmid_clusters, external_status))
     return walks
+
+
+def aggregate_clade_contribution(walks, clade_of):
+    n_permutations = len(walks)
+    genome_marginal_sum = {}  # asmid -> [sum_internal, sum_external]
+    for walk in walks:
+        for record in walk:
+            asmid = record["asmid"]
+            acc = genome_marginal_sum.setdefault(asmid, [0.0, 0.0])
+            acc[0] += record["new_internal_count"]
+            acc[1] += record["new_external_count"]
+
+    # Genome-level Shapley value = mean marginal contribution across permutations.
+    genome_shapley = {
+        asmid: (total[0] / n_permutations, total[1] / n_permutations)
+        for asmid, total in genome_marginal_sum.items()
+    }
+
+    clade_groups = {}  # (rank, label) -> list of asmid
+    for asmid, key in clade_of.items():
+        clade_groups.setdefault(key, []).append(asmid)
+
+    rows = []
+    for (rank, label), asmids in clade_groups.items():
+        internal_vals = [genome_shapley[a][0] for a in asmids]
+        external_vals = [genome_shapley[a][1] for a in asmids]
+        rows.append({
+            "clade_rank": rank,
+            "clade_label": label,
+            "n_genomes": len(asmids),
+            "mean_marginal_internal": sum(internal_vals) / len(asmids),
+            "total_marginal_internal": sum(internal_vals),
+            "mean_marginal_external": sum(external_vals) / len(asmids),
+            "total_marginal_external": sum(external_vals),
+        })
+    return rows
