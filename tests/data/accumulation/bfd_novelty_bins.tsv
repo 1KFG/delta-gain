@@ -1,0 +1,5 @@
+query_id	overall_status
+GENOME_A__p1	strong_hit
+GENOME_A__p2	no_hit
+GENOME_B__p2	weak_hit
+GENOME_C__p1	no_hit

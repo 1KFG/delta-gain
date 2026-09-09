@@ -1,0 +1,4 @@
+asmid	component_id	component_size	existing_species	majority_species_in_component	best_within_component_ani	best_ani_partner	cluster_class
+GENOME_A	comp_1	2	Foo bar	Foo bar	99.5	GENOME_B	redundant_strain
+GENOME_B	comp_1	2	Foo baz	Foo bar	99.5	GENOME_A	redundant_strain
+GENOME_C	comp_2	1	Qux quux	Qux quux			singleton_isolated
