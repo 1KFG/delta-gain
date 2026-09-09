@@ -2219,17 +2219,26 @@ here so they are not rediscovered as surprises during the first real run.
    on the n=100 pilot data before setting the `accumulation_curve` label's
    memory directive in DeltaGain_Fungi's profile config, and consider a
    streaming rewrite if the extrapolation does not fit.
-3. **Python environment provisioning for the two new Nextflow processes**:
-   neither `BUILD_CLUSTER_INCIDENCE_MATRIX` nor `ACCUMULATION_CURVE` declares
-   a container, module-load, or pixi-environment directive, and `python3` on
-   this cluster resolves to a bare miniconda py39 interpreter with none of
-   this plan's pixi dependencies (pyarrow, duckdb, numpy) installed. Deferred
-   because, per this repo's pipeline/data split, environment provisioning
-   belongs in DeltaGain_Fungi's profile config as a `beforeScript`/module-load/
-   container directive on the `build_cluster_incidence_matrix` and
-   `accumulation_curve` process labels, not hardcoded here. Follow-up:
-   DeltaGain_Fungi's `profile_protein_novelty.config` must add this before a
-   real run. (Both module files now carry a header comment saying so.)
+3. **Python environment provisioning for the two new Nextflow processes**
+   (resolved 2026-09-09, mechanism only — real values still owed by
+   DeltaGain_Fungi): `python3` on this cluster resolves to a bare miniconda
+   py39 interpreter with none of this plan's pixi dependencies (pyarrow,
+   duckdb, numpy) installed. Both `BUILD_CLUSTER_INCIDENCE_MATRIX` and
+   `ACCUMULATION_CURVE` now declare `container params.python_container` (a
+   generic Python Apptainer/Singularity image) and prepend
+   `params.python_pip_cache` (a pre-populated, SHARED `/bigdata`-backed
+   directory — never `$SCRATCH`, which is node-local — where pyarrow/duckdb/
+   numpy were `pip install --target=...`'d once ahead of time) to
+   `PYTHONPATH` at task runtime, so the container doesn't need those packages
+   baked in. Both params are empty by default here (undefined in
+   `nextflow.config`, matching the existing `params.diamond_container`
+   pattern — placeholder `''` values live in `conf/test.config` for the stub
+   profile). Follow-up: DeltaGain_Fungi's `profile_protein_novelty.config`
+   must still set real values for both, and the one-time
+   `pip install --target=<python_pip_cache> numpy pyarrow duckdb` needs to
+   run somewhere with network access (verify UCR HPCC compute nodes have
+   this before assuming it can run inside a submitted job — not yet
+   confirmed).
 
 ---
 

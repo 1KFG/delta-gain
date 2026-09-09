@@ -10,13 +10,26 @@
 // already-completed-output-by-path convention protein_novelty.nf already
 // uses for params.uniprot_fungi_nr_fasta.
 //
-// Python environment provisioning (pyarrow/duckdb/numpy) must be supplied by
-// the calling profile config for the 'build_cluster_incidence_matrix' label
-// -- this repo declares no container/module/pixi directive here, per the
+// Python environment provisioning: this process needs pyarrow/duckdb/numpy,
+// which a bare `python3` on this cluster does not have (resolves to
+// miniconda py39 with none of them installed). params.python_container
+// points at a generic Python Apptainer/Singularity image (real path
+// supplied by the calling profile config, e.g. DeltaGain_Fungi's -c
+// config, pulled from something like docker://python:3.11-slim into the
+// shared singularity_cache); the container image itself does NOT need
+// pyarrow/duckdb/numpy baked in -- params.python_pip_cache points at a
+// pre-populated, SHARED (persistent, /bigdata-backed -- never $SCRATCH,
+// which is node-local and would need reinstalling per task) directory
+// where those packages were `pip install --target=...`'d once ahead of
+// time; PYTHONPATH is prepended with it at task runtime so the container's
+// python can import them without a custom-built image. Both params are
+// empty by default (undefined here, like params.diamond_container) --
+// real values belong in the calling profile config per the
 // DeltaGain/DeltaGain_Fungi pipeline/data split.
 
 process BUILD_CLUSTER_INCIDENCE_MATRIX {
     label 'build_cluster_incidence_matrix'
+    container params.python_container
     publishDir { "${params.outdir}/accumulation_${version_tag}" }, mode: 'copy'
 
     input:
@@ -35,8 +48,11 @@ process BUILD_CLUSTER_INCIDENCE_MATRIX {
         path("genome_metadata.parquet"), emit: genome_metadata
 
     script:
+    def python_path_prefix = params.python_pip_cache
+        ? "export PYTHONPATH=\"${params.python_pip_cache}:\${PYTHONPATH:-}\"\n    "
+        : ""
     """
-    ${projectDir}/bin/build_cluster_incidence_matrix.py \\
+    ${python_path_prefix}${projectDir}/bin/build_cluster_incidence_matrix.py \\
         --clusters-tsv ${clusters_tsv} \\
         --provenance-tsv ${provenance_tsv} \\
         --novelty-bins-tsv ${novelty_bins_tsv} \\
