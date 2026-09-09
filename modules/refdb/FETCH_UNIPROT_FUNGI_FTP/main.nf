@@ -26,6 +26,7 @@ process FETCH_UNIPROT_FUNGI_FTP {
 
     output:
         tuple val(division), path(remote_name), emit: dat_gz
+        path("relnotes.txt"), emit: relnotes, optional: true
 
     script:
     """
@@ -39,10 +40,22 @@ process FETCH_UNIPROT_FUNGI_FTP {
         echo "FETCH_UNIPROT_FUNGI_FTP: suspiciously small (<1MB) -- treating as a failure" >&2
         exit 1
     fi
+
+    # Release provenance (version + date) lives in relnotes.txt, not in the
+    # per-division data files. Fetch it once -- gated on division == 'sprot'
+    # -- so it isn't fetched (and emitted) redundantly once per division.
+    if [ "${division}" = "sprot" ]; then
+        curl -fsSL --retry 5 --retry-delay 30 \\
+            "https://ftp.uniprot.org/pub/databases/uniprot/relnotes.txt" \\
+            -o relnotes.txt
+    fi
     """
 
     stub:
     """
     printf "stub placeholder, not a real gzip" > ${remote_name}
+    if [ "${division}" = "sprot" ]; then
+        printf "Header of the UniProt Knowledgebase Release 2026_03 (02-Sept-2026)\\n" > relnotes.txt
+    fi
     """
 }

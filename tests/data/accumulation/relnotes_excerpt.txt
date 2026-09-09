@@ -1,0 +1,8 @@
+UniProt Release 2026_03
+==========================
+
+Header of the UniProt Knowledgebase Release 2026_03 (02-Sept-2026)
+========================================================================
+
+This release contains the following:
+...
