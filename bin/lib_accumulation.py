@@ -7,6 +7,7 @@ precomputed genome x cluster incidence matrix -- no bioinformatics tool is
 re-run per permutation.
 """
 import random
+import numpy as np
 
 
 def run_permutation(asmid_order, asmid_clusters, external_status):
@@ -78,3 +79,40 @@ def aggregate_clade_contribution(walks, clade_of):
             "total_marginal_external": sum(external_vals),
         })
     return rows
+
+
+def _fit_one_walk(walk, count_key):
+    """Log-log OLS fit of count_key(N) ~= kappa * N^-alpha for one
+    permutation's marginal series. Points with count==0 are excluded (log(0)
+    is undefined -- see design doc validation notes on this edge case)."""
+    positions = np.array([r["position"] for r in walk], dtype=float)
+    counts = np.array([r[count_key] for r in walk], dtype=float)
+    mask = counts > 0
+    if mask.sum() < 2:
+        return None
+    log_n = np.log(positions[mask])
+    log_count = np.log(counts[mask])
+    # log(count) = log(kappa) - alpha * log(N)  ->  linear regression.
+    slope, intercept = np.polyfit(log_n, log_count, 1)
+    alpha = -slope
+    kappa = np.exp(intercept)
+    predicted = intercept + slope * log_n
+    ss_res = np.sum((log_count - predicted) ** 2)
+    ss_tot = np.sum((log_count - log_count.mean()) ** 2)
+    r_squared = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+    return alpha, kappa, r_squared
+
+
+def fit_power_law_per_permutation(walks, count_key):
+    fits = [f for f in (_fit_one_walk(w, count_key) for w in walks) if f is not None]
+    alphas = np.array([f[0] for f in fits])
+    kappas = np.array([f[1] for f in fits])
+    r_squareds = np.array([f[2] for f in fits])
+    return {
+        "alpha_mean": float(alphas.mean()),
+        "alpha_ci_low": float(np.percentile(alphas, 2.5)),
+        "alpha_ci_high": float(np.percentile(alphas, 97.5)),
+        "kappa_mean": float(kappas.mean()),
+        "r_squared_mean": float(r_squareds.mean()),
+        "alphas": alphas.tolist(),
+    }
