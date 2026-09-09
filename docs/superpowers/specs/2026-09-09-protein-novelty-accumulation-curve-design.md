@@ -228,9 +228,24 @@ as present with undefined behavior). Explicitly:
   not claimed from the cumulative overlay.
   **Uncertainty**: fit this model per permutation (not once to the
   across-permutation mean), giving a distribution of `alpha` across the P
-  permutations. Report the mean `alpha` with its 2.5/97.5 percentile
-  interval (see CI-band definition below) rather than a single point
-  estimate with no uncertainty.
+  permutations. Report the mean `alpha` with its 95% CI (2.5/97.5
+  percentiles of that per-permutation distribution — decided 2026-09-09)
+  rather than a single point estimate with no uncertainty. The same
+  2.5/97.5-percentile convention defines the ribbon/band on every curve and
+  distribution plot in this design (figures 1, 2, 5, 9, 10).
+
+  **Choosing production P**: reliable 2.5/97.5 percentiles need enough
+  permutations in the tails to not be dominated by a couple of extreme
+  order statistics (P=100 leaves only ~2-3 permutations below the 2.5th
+  percentile; P=1000 leaves ~25, which is reasonably stable). Default
+  `params.n_permutations` to **1000**, but treat this as provisional until
+  validation #1 (permutation-count convergence) empirically confirms it at
+  whatever scale (pilot, scale-up, full ~22k) this actually runs — per-
+  permutation cost is not yet measured at any of these scales, so SLURM
+  walltime for `ACCUMULATION_CURVE` should be set generously (not tightly
+  estimated) until real timing data from an actual run establishes it,
+  consistent with this project's general practice of sizing job resources
+  from measured timing rather than a guess.
 
 ## Pipeline integration
 
