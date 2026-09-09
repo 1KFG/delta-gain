@@ -23,3 +23,6 @@ logs/slurm/*.err
 # completes, rather than mid-run.
 results/
 lib/uniprot_fungi/
+
+# subagent-driven-development scratch workspace (ledger, briefs, review packages)
+.superpowers/
