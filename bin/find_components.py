@@ -53,6 +53,31 @@ class UnionFind:
             self.parent[ra] = rb
 
 
+def asmid_from_mash_id(mash_path):
+    """Recover the bare ASMID from a `mash dist` query/ref field.
+
+    Real bug found 2026-09-08 running the first real multi-genome pilot
+    (never surfaced at the earlier --n_test 2 validation, which produced
+    only singleton components and so never actually exercised
+    SKANI_TRIANGLE): `mash sketch`'s internal sketch ID is the INPUT FASTA
+    FILENAME given on its command line (here, the staged `<ASMID>.fa.gz`
+    Nextflow input), NOT the `-o` output-prefix argument -- so `mash dist`
+    reports query/ref as `<ASMID>.fa.gz`, not `<ASMID>.msh`. Stripping only
+    a literal `.msh` suffix left the `.fa.gz` in place, so the genome path
+    this script later builds (`<genome_dir>/<asmid>.fa.gz`) came out as
+    `.../<ASMID>.fa.gz.fa.gz` -- skani then skipped every genome in every
+    multi-member component ("not a valid fasta/fastq file"). Stripping both
+    possible suffixes (order-independent, since only one will ever be
+    present) is robust to either naming behavior.
+    """
+    name = os.path.basename(mash_path)
+    if name.endswith(".msh"):
+        name = name[: -len(".msh")]
+    if name.endswith(".fa.gz"):
+        name = name[: -len(".fa.gz")]
+    return name
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mash-dist", required=True)
@@ -71,7 +96,16 @@ def main():
             samples[asmid] = row
 
     uf = UnionFind()
-    all_asmids = set(samples.keys())
+    # Seeded ONLY from genomes that actually appear in the mash-dist input
+    # (i.e. actually mash-sketched this run), NOT from every row of
+    # --samples. Real bug found 2026-09-08 running the first n_test-limited
+    # pilot (--n_test 100): seeding from the full samples.csv (23,683 rows)
+    # made every genome NOT included in this run's subset show up as a
+    # `singleton_isolated` component -- falsely implying "compared, found no
+    # neighbor above the ANI floor" for ~23,600 genomes that were never
+    # mash-sketched at all in an n_test-limited run. `singleton_isolated`
+    # must mean "actually compared, no match," not "not part of this run."
+    all_asmids = set()
 
     with open(args.mash_dist, newline="") as fh:
         for line in fh:
@@ -81,8 +115,8 @@ def main():
             if len(parts) < 3:
                 continue
             query_path, ref_path, distance = parts[0], parts[1], parts[2]
-            query = os.path.basename(query_path).removesuffix(".msh")
-            ref = os.path.basename(ref_path).removesuffix(".msh")
+            query = asmid_from_mash_id(query_path)
+            ref = asmid_from_mash_id(ref_path)
             all_asmids.add(query)
             all_asmids.add(ref)
             if query == ref:
