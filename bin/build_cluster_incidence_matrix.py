@@ -87,12 +87,36 @@ def _read_genome_classification(path):
 
 
 def _assign_clade(asmid, tax_by_asmid, rank_counts, min_clade_n):
+    """Density-adaptive clade assignment with an explicit roll-up label.
+
+    A genome is tagged at the finest rank whose label has at least
+    min_clade_n annotated genomes. When that means rolling UP past a finer
+    rank that did have a value (but was too sparse to report on its own),
+    the label is returned as e.g. "Agaricomycetes (other orders)" rather
+    than the bare "Agaricomycetes" -- design doc, Components: a roll-up bar
+    in the per-clade plot must never be misread as "the whole class/order"
+    when it only represents the finer clades too sparse to report
+    individually. A naturally-blank finer rank is NOT a roll-up: if the
+    assigned rank is the genome's finest rank that had any value at all,
+    the bare label is returned unchanged.
+    """
     row = tax_by_asmid.get(asmid, {})
+    finest_populated_failed = None  # finest rank that HAD a value but was too sparse
     for rank in RANK_ORDER:
         label = row.get(rank)
-        if label and rank_counts[rank].get(label, 0) >= min_clade_n:
-            return rank, label
-    return "PHYLUM", row.get("PHYLUM") or "unclassified"
+        if not label:
+            continue
+        if rank_counts[rank].get(label, 0) >= min_clade_n:
+            if finest_populated_failed is None:
+                return rank, label
+            return rank, f"{label} (other {finest_populated_failed.lower()}s)"
+        if finest_populated_failed is None:
+            finest_populated_failed = rank
+    phylum = row.get("PHYLUM") or "unclassified"
+    if (finest_populated_failed is None or finest_populated_failed == "PHYLUM"
+            or phylum == "unclassified"):
+        return "PHYLUM", phylum
+    return "PHYLUM", f"{phylum} (other {finest_populated_failed.lower()}s)"
 
 
 def build_incidence_matrix(clusters_tsv, provenance_tsv, novelty_bins_tsv,
@@ -121,11 +145,23 @@ def build_incidence_matrix(clusters_tsv, provenance_tsv, novelty_bins_tsv,
         "cluster_id": [p[1] for p in pairs],
     })
 
+    # Fail loudly rather than defaulting to "no_hit": bin_novelty_hits.py
+    # emits a row for EVERY query in its input FASTA, no-hit ones included,
+    # so a cluster representative missing here means the three inputs came
+    # from mismatched runs -- a real data-mismatch bug. Defaulting would
+    # silently inflate the external-novelty curve (same class of silent
+    # false-negative as learning L-8).
+    sorted_reps = sorted(cluster_reps_seen)
+    missing_status = [c for c in sorted_reps if c not in ext_status_by_protein]
+    if missing_status:
+        raise ValueError(
+            "cluster representative(s) present in the clustering but missing "
+            f"from {novelty_bins_tsv}: {missing_status}"
+        )
+
     external_status = pd.DataFrame({
-        "cluster_id": sorted(cluster_reps_seen),
-        "external_status": [
-            ext_status_by_protein.get(c, "no_hit") for c in sorted(cluster_reps_seen)
-        ],
+        "cluster_id": sorted_reps,
+        "external_status": [ext_status_by_protein[c] for c in sorted_reps],
     })
 
     # Per-clade genome counts at every rank, for the density-adaptive rollup.

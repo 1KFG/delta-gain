@@ -74,16 +74,20 @@ def test_genome_metadata_joins_qc_and_taxonomy_and_rolls_up_clade(tmp_path):
     assert meta.loc["GENOME_A", "n50_bp"] == 500000
     assert meta.loc["GENOME_A", "component_id"] == "comp_1"
     assert meta.loc["GENOME_A", "cluster_class"] == "redundant_strain"
-    # ORDER=Pleosporales has 2 genomes (>= min_clade_n=2) -> that's the clade rank/label.
+    # ORDER=Pleosporales has 2 genomes (>= min_clade_n=2) -> that's the clade
+    # rank/label. FAMILY is blank in the fixture, so ORDER is this genome's
+    # finest POPULATED rank: no roll-up happened, label stays bare.
     assert meta.loc["GENOME_A", "clade_rank"] == "ORDER"
     assert meta.loc["GENOME_A", "clade_label"] == "Pleosporales"
     # ORDER=Agaricales has only 1 genome (< min_clade_n), but CLASS=
-    # Agaricomycetes has 2 (GENOME_C + GENOME_D) -> rolls up to CLASS.
+    # Agaricomycetes has 2 (GENOME_C + GENOME_D) -> rolls up to CLASS. ORDER
+    # WAS populated and failed the density check, so this is a genuine
+    # roll-up and the label must say so (design doc: Components).
     assert meta.loc["GENOME_C", "clade_rank"] == "CLASS"
-    assert meta.loc["GENOME_C", "clade_label"] == "Agaricomycetes"
+    assert meta.loc["GENOME_C", "clade_label"] == "Agaricomycetes (other orders)"
     # GENOME_D: ORDER=Auriculariales has only 1 genome -> same CLASS rollup.
     assert meta.loc["GENOME_D", "clade_rank"] == "CLASS"
-    assert meta.loc["GENOME_D", "clade_label"] == "Agaricomycetes"
+    assert meta.loc["GENOME_D", "clade_label"] == "Agaricomycetes (other orders)"
 
 
 def test_duplicate_asmid_in_samples_csv_raises(tmp_path):
@@ -125,6 +129,33 @@ def test_duplicate_asmid_in_provenance_raises(tmp_path):
             clusters_tsv=FIXTURES / "bfd_proteins_clusters.tsv",
             provenance_tsv=bad_provenance,
             novelty_bins_tsv=FIXTURES / "bfd_novelty_bins.tsv",
+            samples_csv=FIXTURES / "samples.csv",
+            busco_parquet=busco_pq, asm_stats_parquet=asm_pq,
+            genome_classification_tsv=FIXTURES / "genome_classification.tsv",
+            min_clade_n=2,
+        )
+
+
+def test_cluster_missing_from_novelty_bins_raises(tmp_path):
+    """A cluster representative absent from bfd_novelty_bins.tsv means the
+    three inputs came from mismatched runs -- bin_novelty_hits.py emits a row
+    for every query including no-hit ones. Must fail loudly rather than
+    silently defaulting to the novelty-inflating "no_hit"."""
+    import pytest
+    truncated_bins = tmp_path / "bfd_novelty_bins.tsv"
+    truncated_bins.write_text(
+        "query_id\toverall_status\n"
+        "GENOME_A__p1\tstrong_hit\n"
+        "GENOME_A__p2\tno_hit\n"
+        "GENOME_B__p2\tweak_hit\n"
+        # GENOME_C__p1 and GENOME_D__p1 deliberately omitted.
+    )
+    busco_pq, asm_pq = _write_qc_fixtures(tmp_path)
+    with pytest.raises(ValueError, match="GENOME_C__p1"):
+        build_incidence_matrix(
+            clusters_tsv=FIXTURES / "bfd_proteins_clusters.tsv",
+            provenance_tsv=FIXTURES / "bfd_proteins_provenance.tsv",
+            novelty_bins_tsv=truncated_bins,
             samples_csv=FIXTURES / "samples.csv",
             busco_parquet=busco_pq, asm_stats_parquet=asm_pq,
             genome_classification_tsv=FIXTURES / "genome_classification.tsv",

@@ -41,6 +41,13 @@ def test_cli_runs_end_to_end_and_writes_expected_outputs(tmp_path):
          "--genome-metadata", str(tmp_path / "genome_metadata.parquet"),
          "--n-permutations", "20", "--seed", "1",
          "--version-tag", "test-v1-abc1234",
+         # The toy fixture's two comp_1 "redundant_strain" genomes are not
+         # actually redundant at the protein level (GENOME_B carries its own
+         # GENOME_B__p2 cluster), so the real 0.05 validation-#4 threshold
+         # trips on it by construction. Relax it here so this test keeps
+         # covering the happy path; the threshold itself is exercised by
+         # test_positive_control_violation_exits_nonzero below.
+         "--max-marginal-frac", "1.1",
          "--outdir", str(tmp_path)],
         capture_output=True, text=True,
     )
@@ -70,3 +77,94 @@ def test_cli_runs_end_to_end_and_writes_expected_outputs(tmp_path):
     raw = pq.read_table(tmp_path / "permutation_marginals.parquet")
     assert raw.num_rows == 20 * 4  # n_permutations * n_genomes
     assert set(raw.column("version_tag").to_pylist()) == {"test-v1-abc1234"}
+
+
+def _write_synthetic_inputs(tmp_path, incidence_rows, genome_rows):
+    """Write the three Parquet inputs the CLI consumes, hand-crafted rather
+    than derived from build_incidence_matrix, so a specific mismatch or
+    positive-control violation can be constructed deliberately."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq2
+
+    clusters = sorted({c for _, c in incidence_rows})
+    pq2.write_table(
+        pa.table({"asmid": [a for a, _ in incidence_rows],
+                  "cluster_id": [c for _, c in incidence_rows]}),
+        tmp_path / "incidence_matrix.parquet")
+    pq2.write_table(
+        pa.table({"cluster_id": clusters,
+                  "external_status": ["no_hit"] * len(clusters)}),
+        tmp_path / "cluster_external_status.parquet")
+    pq2.write_table(
+        pa.table({key: [r[key] for r in genome_rows] for key in genome_rows[0]}),
+        tmp_path / "genome_metadata.parquet")
+
+
+def _run_cli(tmp_path, extra_args=()):
+    return subprocess.run(
+        [sys.executable, "bin/accumulation_curve.py",
+         "--incidence-matrix", str(tmp_path / "incidence_matrix.parquet"),
+         "--external-status", str(tmp_path / "cluster_external_status.parquet"),
+         "--genome-metadata", str(tmp_path / "genome_metadata.parquet"),
+         "--n-permutations", "10", "--seed", "1",
+         "--version-tag", "test-v1-abc1234",
+         "--outdir", str(tmp_path), *extra_args],
+        capture_output=True, text=True,
+    )
+
+
+def _genome_row(asmid, component, cluster_class, n_proteins):
+    return {"asmid": asmid, "n_proteins": n_proteins, "complete_pct": 95.0,
+            "n50_bp": 100000, "component_id": component,
+            "cluster_class": cluster_class, "clade_rank": "PHYLUM",
+            "clade_label": "Ascomycota"}
+
+
+def test_positive_control_violation_exits_nonzero(tmp_path):
+    """Validation #4 is wired into accumulation_curve.py as an automated
+    assertion (design doc: "Implement as an automated assertion in
+    bin/accumulation_curve.py's output validation"). Two same-component
+    redundant_strain genomes with completely disjoint protein content are
+    exactly the impossible case that assertion exists to catch."""
+    incidence_rows = ([("GENOME_A", f"cA{i}") for i in range(10)]
+                      + [("GENOME_B", f"cB{i}") for i in range(10)])
+    genome_rows = [_genome_row("GENOME_A", "comp_1", "redundant_strain", 10),
+                   _genome_row("GENOME_B", "comp_1", "redundant_strain", 10)]
+    _write_synthetic_inputs(tmp_path, incidence_rows, genome_rows)
+
+    result = _run_cli(tmp_path)
+    assert result.returncode == 1, result.stdout
+    assert "VIOLATION" in result.stderr
+    assert "GENOME_" in result.stderr
+
+
+def test_positive_control_passes_for_genuinely_redundant_pair(tmp_path):
+    """Same setup, but the two same-component genomes actually share all of
+    their protein content -- the later one contributes nothing new, so the
+    assertion passes and the CLI exits 0. A third, unrelated genome with its
+    own content is included so the per-permutation power-law fit has more
+    than one distinct marginal value to work with."""
+    incidence_rows = ([(g, f"c{i}") for g in ("GENOME_A", "GENOME_B") for i in range(10)]
+                      + [("GENOME_C", f"cC{i}") for i in range(10)])
+    genome_rows = [_genome_row("GENOME_A", "comp_1", "redundant_strain", 10),
+                   _genome_row("GENOME_B", "comp_1", "redundant_strain", 10),
+                   _genome_row("GENOME_C", "comp_2", "singleton_isolated", 10)]
+    _write_synthetic_inputs(tmp_path, incidence_rows, genome_rows)
+
+    result = _run_cli(tmp_path)
+    assert result.returncode == 0, result.stderr
+
+
+def test_mismatched_genome_universes_raise(tmp_path):
+    """incidence_matrix.parquet and genome_metadata.parquet are independent
+    Nextflow path inputs; a genome in one but not the other would otherwise
+    be silently dropped from clade_contribution.tsv while still counted in
+    the curves."""
+    incidence_rows = [(g, f"c{i}") for g in ("GENOME_A", "GENOME_B") for i in range(3)]
+    genome_rows = [_genome_row("GENOME_A", "comp_1", "singleton_isolated", 3)]
+    _write_synthetic_inputs(tmp_path, incidence_rows, genome_rows)
+
+    result = _run_cli(tmp_path)
+    assert result.returncode != 0
+    assert "genome universes disagree" in result.stderr
+    assert "GENOME_B" in result.stderr

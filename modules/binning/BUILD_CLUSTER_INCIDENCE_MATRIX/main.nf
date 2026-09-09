@@ -9,10 +9,15 @@
 // block for how that path is turned into a channel), the same
 // already-completed-output-by-path convention protein_novelty.nf already
 // uses for params.uniprot_fungi_nr_fasta.
+//
+// Python environment provisioning (pyarrow/duckdb/numpy) must be supplied by
+// the calling profile config for the 'build_cluster_incidence_matrix' label
+// -- this repo declares no container/module/pixi directive here, per the
+// DeltaGain/DeltaGain_Fungi pipeline/data split.
 
 process BUILD_CLUSTER_INCIDENCE_MATRIX {
     label 'build_cluster_incidence_matrix'
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir { "${params.outdir}/accumulation_${version_tag}" }, mode: 'copy'
 
     input:
         path(clusters_tsv)
@@ -22,6 +27,7 @@ process BUILD_CLUSTER_INCIDENCE_MATRIX {
         path(busco_parquet)
         path(asm_stats_parquet)
         path(genome_classification_tsv)
+        val(version_tag)
 
     output:
         path("incidence_matrix.parquet"), emit: incidence_matrix

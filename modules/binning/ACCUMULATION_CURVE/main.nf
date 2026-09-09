@@ -3,10 +3,15 @@
 // ACCUMULATION_CURVE). params.n_permutations defaults to 1000, provisional
 // pending the permutation-count convergence check (validation #1) -- see
 // design doc's "Choosing production P".
+//
+// Python environment provisioning (pyarrow/duckdb/numpy) must be supplied by
+// the calling profile config for the 'accumulation_curve' label -- this repo
+// declares no container/module/pixi directive here, per the DeltaGain/
+// DeltaGain_Fungi pipeline/data split.
 
 process ACCUMULATION_CURVE {
     label 'accumulation_curve'
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir { "${params.outdir}/accumulation_${version_tag}" }, mode: 'copy'
 
     input:
         path(incidence_matrix)

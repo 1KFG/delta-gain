@@ -16,7 +16,15 @@ def test_build_figures_returns_all_three():
         "clade_label": ["Pleosporales", "Agaricomycetes"],
         "mean_marginal_internal": [1.5, 1.0],
     })
-    figures = build_figures(summary_df, fit_df, clade_df)
+    figures = build_figures(summary_df, fit_df, clade_df, "test-v1-abc1234")
     assert set(figures) == {"internal_curve", "external_curve", "clade_contribution"}
     for fig in figures.values():
         assert len(fig.data) > 0
+        # Design doc: the run's version tag goes in the figure's own title,
+        # not just in the output filename.
+        assert "test-v1-abc1234" in fig.layout.title.text
+    # Design doc "Known caveat": stated on the two accumulation curves,
+    # where a saturation claim would be read.
+    for name in ("internal_curve", "external_curve"):
+        assert "not a calibrated estimate" in figures[name].layout.title.text
+    assert "not a calibrated estimate" not in figures["clade_contribution"].layout.title.text

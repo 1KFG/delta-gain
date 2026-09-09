@@ -134,22 +134,32 @@ workflow {
     // from a Stage-1 process (CLASSIFY_GENOMES's default, unnamed output
     // channel lives in genome_classify.nf's own workflow{}, a different
     // pipeline entirely).
-    BUILD_CLUSTER_INCIDENCE_MATRIX(
-        MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
-        COMBINE_BFD_PROTEINS.out.provenance,
-        BIN_NOVELTY_HITS.out.bins,
-        samples_csv,
-        Channel.fromPath(params.bfd_duckdb_busco_parquet, checkIfExists: true),
-        Channel.fromPath(params.bfd_duckdb_asm_stats_parquet, checkIfExists: true),
-        Channel.fromPath(params.genome_classification_tsv, checkIfExists: true),
-    )
+    //
+    // Gated the same way params.uniprot_fungi_nr_fasta is above: these
+    // params default to '' in nextflow.config (the real paths come from
+    // DeltaGain_Fungi's `-c` profile config), and an empty-string path with
+    // checkIfExists: true aborts the ENTIRE workflow, not just this branch.
+    // With the gate, clearing them simply skips the accumulation-curve
+    // analysis and leaves every pre-existing Stage 3 step running.
+    if (params.bfd_duckdb_busco_parquet && params.genome_classification_tsv) {
+        BUILD_CLUSTER_INCIDENCE_MATRIX(
+            MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
+            COMBINE_BFD_PROTEINS.out.provenance,
+            BIN_NOVELTY_HITS.out.bins,
+            samples_csv,
+            Channel.fromPath(params.bfd_duckdb_busco_parquet, checkIfExists: true),
+            Channel.fromPath(params.bfd_duckdb_asm_stats_parquet, checkIfExists: true),
+            Channel.fromPath(params.genome_classification_tsv, checkIfExists: true),
+            params.bfd_version_tag,
+        )
 
-    ACCUMULATION_CURVE(
-        BUILD_CLUSTER_INCIDENCE_MATRIX.out.incidence_matrix,
-        BUILD_CLUSTER_INCIDENCE_MATRIX.out.external_status,
-        BUILD_CLUSTER_INCIDENCE_MATRIX.out.genome_metadata,
-        params.bfd_version_tag,
-    )
+        ACCUMULATION_CURVE(
+            BUILD_CLUSTER_INCIDENCE_MATRIX.out.incidence_matrix,
+            BUILD_CLUSTER_INCIDENCE_MATRIX.out.external_status,
+            BUILD_CLUSTER_INCIDENCE_MATRIX.out.genome_metadata,
+            params.bfd_version_tag,
+        )
+    }
 
     // Comparison-only branch (2026-09-08): dereplicate the same combined
     // BFD protein set a second way, then compare -- not fed into

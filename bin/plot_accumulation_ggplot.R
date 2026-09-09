@@ -25,6 +25,15 @@ clade_df   <- read_tsv_arrow(opt$clade_tsv)
 
 caption <- paste("version:", opt$version_tag)
 
+# Design doc, "Known caveat": must be stated explicitly wherever any result
+# from this analysis is reported. Added to figures 1 and 2 specifically --
+# the accumulation curves, where a saturation claim would be read.
+caveat <- paste0(
+  "Describes discovery within the annotated subset only, ",
+  "not a calibrated estimate of total fungal pan-proteome size."
+)
+curve_caption <- paste(caption, caveat, sep = "\n")
+
 # Figure 1/2: internal + external accumulation curves with power-law overlay.
 plot_accumulation_curve <- function(df, mean_col, lo_col, hi_col, fit_row, title) {
   alpha <- fit_row$alpha_mean
@@ -37,7 +46,7 @@ plot_accumulation_curve <- function(df, mean_col, lo_col, hi_col, fit_row, title
     geom_line(aes(y = predicted_cumulative), linetype = "dashed", color = "firebrick") +
     labs(title = title,
          subtitle = sprintf("alpha=%.2f [%.2f, %.2f], kappa=%.1f", alpha, fit_row$alpha_ci_low, fit_row$alpha_ci_high, kappa),
-         x = "Genomes added (N)", y = "Cumulative distinct clusters", caption = caption) +
+         x = "Genomes added (N)", y = "Cumulative distinct clusters", caption = curve_caption) +
     theme_minimal()
 }
 
@@ -47,8 +56,11 @@ fig2 <- plot_accumulation_curve(summary_df, "external_mean", "external_p2_5", "e
                                  fit_df[fit_df$series == "external", ], "External-novelty accumulation curve")
 
 # Figure 3: per-clade marginal contribution, sorted descending, roll-up
-# labels shown verbatim from clade_contribution.tsv (already carries the
-# "ORDER (other families)" convention from Task 5/7).
+# labels shown verbatim from clade_contribution.tsv. Those labels are
+# produced by build_cluster_incidence_matrix.py's _assign_clade, which
+# suffixes a genuinely rolled-up clade as e.g. "Agaricomycetes (other
+# orders)" so a roll-up bar is not misread as "the whole class"; clades
+# assigned at their own finest populated rank keep a bare label.
 clade_df_sorted <- clade_df[order(-clade_df$mean_marginal_internal), ]
 fig3 <- ggplot(clade_df_sorted, aes(x = reorder(clade_label, mean_marginal_internal), y = mean_marginal_internal)) +
   geom_col() + coord_flip() +

@@ -2195,6 +2195,42 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
   per the project's established pipeline/data split — a follow-up task in
   that sibling repo once this plan's code lands.
 
+### Acknowledged gaps after the final whole-branch review (2026-09-09)
+
+These three are known, deliberate gaps in the delivered branch, recorded
+here so they are not rediscovered as surprises during the first real run.
+
+1. **Provenance-manifest wiring**: `bin/build_cluster_manifest.py` and
+   `bin/build_uniprot_manifest.py` exist as tested library functions, but
+   nothing in the Nextflow DAG calls them — there is no
+   `BUILD_CLUSTER_MANIFEST` process and no `--out` CLI entry point on
+   `build_cluster_manifest.py`, so a real run today produces no
+   `bfd_cluster_manifest.json` or `uniprot_fungi_nr.manifest.json`. Deferred
+   because the manifest fields (genomes screened out per QC filter, exact
+   tool versions) are only meaningful against real scale-up inputs, not
+   synthetic fixtures. Follow-up: add a `BUILD_CLUSTER_MANIFEST` process and
+   the CLI entry point once this pipeline runs against real scale-up data.
+2. **Memory sizing at scale**: `run_all_permutations` materializes every
+   permutation's full walk in memory before any output is written; at the
+   production `n_permutations=1000` and the full ~22k-genome scale this could
+   reach several GB, and that peak has never been measured. Deferred because
+   guessing a SLURM memory directive without measured data would violate this
+   project's size-from-real-timing practice. Follow-up: measure real peak RSS
+   on the n=100 pilot data before setting the `accumulation_curve` label's
+   memory directive in DeltaGain_Fungi's profile config, and consider a
+   streaming rewrite if the extrapolation does not fit.
+3. **Python environment provisioning for the two new Nextflow processes**:
+   neither `BUILD_CLUSTER_INCIDENCE_MATRIX` nor `ACCUMULATION_CURVE` declares
+   a container, module-load, or pixi-environment directive, and `python3` on
+   this cluster resolves to a bare miniconda py39 interpreter with none of
+   this plan's pixi dependencies (pyarrow, duckdb, numpy) installed. Deferred
+   because, per this repo's pipeline/data split, environment provisioning
+   belongs in DeltaGain_Fungi's profile config as a `beforeScript`/module-load/
+   container directive on the `build_cluster_incidence_matrix` and
+   `accumulation_curve` process labels, not hardcoded here. Follow-up:
+   DeltaGain_Fungi's `profile_protein_novelty.config` must add this before a
+   real run. (Both module files now carry a header comment saying so.)
+
 ---
 
 ## Self-Review
