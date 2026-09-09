@@ -55,14 +55,18 @@ def test_cli_runs_end_to_end_and_writes_expected_outputs(tmp_path):
     assert len(rows) == 4  # N = 1, 2, 3, 4 (four genomes total)
     assert rows[-1]["internal_mean"] == "5.0"  # all 5 clusters seen by N=4
     assert rows[-1]["external_mean"] == "3.0"  # all 3 no_hit clusters seen by N=4
+    assert all(r["version_tag"] == "test-v1-abc1234" for r in rows)
 
     with open(tmp_path / "pangenome_powerlaw_fit.tsv") as fh:
         fit_rows = list(csv.DictReader(fh, delimiter="\t"))
     assert {r["series"] for r in fit_rows} == {"internal", "external"}
+    assert all(r["version_tag"] == "test-v1-abc1234" for r in fit_rows)
 
     with open(tmp_path / "clade_contribution.tsv") as fh:
         clade_rows = list(csv.DictReader(fh, delimiter="\t"))
     assert len(clade_rows) >= 1
+    assert all(r["version_tag"] == "test-v1-abc1234" for r in clade_rows)
 
     raw = pq.read_table(tmp_path / "permutation_marginals.parquet")
     assert raw.num_rows == 20 * 4  # n_permutations * n_genomes
+    assert set(raw.column("version_tag").to_pylist()) == {"test-v1-abc1234"}

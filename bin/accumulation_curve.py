@@ -32,12 +32,13 @@ def _load_inputs(incidence_path, external_status_path, genome_metadata_path):
     return asmid_clusters, external_status, clade_of
 
 
-def _write_summary_tsv(walks, path):
+def _write_summary_tsv(walks, path, version_tag):
     n_genomes = len(walks[0])
     with open(path, "w", newline="") as fh:
         writer = csv.writer(fh, delimiter="\t")
         writer.writerow(["N", "internal_mean", "internal_p2_5", "internal_p97_5",
-                          "external_mean", "external_p2_5", "external_p97_5"])
+                          "external_mean", "external_p2_5", "external_p97_5",
+                          "version_tag"])
         for position in range(1, n_genomes + 1):
             internal_vals = np.array([w[position - 1]["internal_cumulative"] for w in walks], dtype=float)
             external_vals = np.array([w[position - 1]["external_cumulative"] for w in walks], dtype=float)
@@ -45,33 +46,36 @@ def _write_summary_tsv(walks, path):
                 position,
                 internal_vals.mean(), np.percentile(internal_vals, 2.5), np.percentile(internal_vals, 97.5),
                 external_vals.mean(), np.percentile(external_vals, 2.5), np.percentile(external_vals, 97.5),
+                version_tag,
             ])
 
 
-def _write_fit_tsv(walks, path):
+def _write_fit_tsv(walks, path, version_tag):
     with open(path, "w", newline="") as fh:
         writer = csv.writer(fh, delimiter="\t")
         writer.writerow(["series", "alpha_mean", "alpha_ci_low", "alpha_ci_high",
-                          "kappa_mean", "r_squared_mean"])
+                          "kappa_mean", "r_squared_mean", "version_tag"])
         for series, count_key in [("internal", "new_internal_count"), ("external", "new_external_count")]:
             fit = fit_power_law_per_permutation(walks, count_key)
             writer.writerow([series, fit["alpha_mean"], fit["alpha_ci_low"], fit["alpha_ci_high"],
-                              fit["kappa_mean"], fit["r_squared_mean"]])
+                              fit["kappa_mean"], fit["r_squared_mean"], version_tag])
 
 
-def _write_clade_tsv(walks, clade_of, path):
+def _write_clade_tsv(walks, clade_of, path, version_tag):
     rows = aggregate_clade_contribution(walks, clade_of)
+    for row in rows:
+        row["version_tag"] = version_tag
     with open(path, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()), delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
 
 
-def _write_raw_marginals_parquet(walks, permutation_ids, path):
+def _write_raw_marginals_parquet(walks, permutation_ids, path, version_tag):
     records = []
     for perm_id, walk in zip(permutation_ids, walks):
         for record in walk:
-            records.append({"permutation_id": perm_id, **record})
+            records.append({"permutation_id": perm_id, **record, "version_tag": version_tag})
     table = pa.table({key: [r[key] for r in records] for key in records[0]})
     pq.write_table(table, path, compression="zstd")
 
@@ -95,10 +99,10 @@ def main():
                                   args.n_permutations, args.seed)
     permutation_ids = list(range(args.n_permutations))
 
-    _write_summary_tsv(walks, f"{args.outdir}/accumulation_curve_summary.tsv")
-    _write_fit_tsv(walks, f"{args.outdir}/pangenome_powerlaw_fit.tsv")
-    _write_clade_tsv(walks, clade_of, f"{args.outdir}/clade_contribution.tsv")
-    _write_raw_marginals_parquet(walks, permutation_ids, f"{args.outdir}/permutation_marginals.parquet")
+    _write_summary_tsv(walks, f"{args.outdir}/accumulation_curve_summary.tsv", args.version_tag)
+    _write_fit_tsv(walks, f"{args.outdir}/pangenome_powerlaw_fit.tsv", args.version_tag)
+    _write_clade_tsv(walks, clade_of, f"{args.outdir}/clade_contribution.tsv", args.version_tag)
+    _write_raw_marginals_parquet(walks, permutation_ids, f"{args.outdir}/permutation_marginals.parquet", args.version_tag)
 
 
 if __name__ == "__main__":
