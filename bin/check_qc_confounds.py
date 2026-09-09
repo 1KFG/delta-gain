@@ -21,6 +21,14 @@ def compute_qc_confound_correlations(raw_marginals_path, genome_metadata_path):
         acc["external"].append(record["new_external_count"])
 
     asmids = sorted(mean_marginal)
+
+    # Check for asmids in raw marginals but missing from genome metadata
+    missing = set(asmids) - set(genome_meta.keys())
+    if missing:
+        raise ValueError(
+            f"asmid(s) in raw marginals but missing from genome metadata: {sorted(missing)}"
+        )
+
     internal_raw = np.array([np.mean(mean_marginal[a]["internal"]) for a in asmids])
     n_proteins = np.array([genome_meta[a]["n_proteins"] for a in asmids], dtype=float)
     complete_pct = np.array([genome_meta[a]["complete_pct"] for a in asmids], dtype=float)
