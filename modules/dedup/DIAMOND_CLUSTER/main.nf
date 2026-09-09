@@ -6,9 +6,13 @@
 // protein set?). Not wired into the search/binning steps -- this branch
 // exists purely to produce a second clustering for COMPARE_CLUSTERINGS.
 //
-// diamond/2.2.6 specifically (not the older 2.2.5 already cached): needed
-// for --cluster-steps/--round-coverage cascaded-clustering support. New
-// container built 2026-09-08 from quay.io/biocontainers/diamond:2.2.6--he361c42_0.
+// Uses the same params.diamond_container as every other DIAMOND process
+// (unified 2026-09-09 -- this module used to pin a separate
+// diamond_container_2_2_6 param, since it specifically needs 2.2.6's
+// --cluster-steps/--round-coverage cascaded-clustering support while other
+// DIAMOND modules were still on 2.2.5; the whole pipeline now runs 2.2.6
+// uniformly, so a single param suffices). Container built 2026-09-08 from
+// quay.io/biocontainers/diamond:2.2.6--he361c42_0.
 //
 // --approx-id/--mutual-cover chosen to match MMSEQS_LINCLUST's existing
 // 95%/90% thresholds (params.mmseqs_min_seq_id/params.mmseqs_coverage) for
@@ -30,7 +34,7 @@
 process DIAMOND_CLUSTER {
     tag       { prefix }
     label     'diamond_cluster'
-    container params.diamond_container_2_2_6
+    container params.diamond_container
     publishDir "${params.outdir}", mode: 'copy'
 
     input:
