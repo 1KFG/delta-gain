@@ -29,6 +29,7 @@ process ACCUMULATION_CURVE {
         path("pangenome_powerlaw_fit.tsv"), emit: fit
         path("clade_contribution.tsv"), emit: clade_contribution
         path("permutation_marginals.parquet"), emit: raw_marginals
+        path("positive_control_report.json"), emit: positive_control_report
 
     script:
     """
@@ -42,10 +43,16 @@ process ACCUMULATION_CURVE {
         --version-tag ${version_tag} \\
         --outdir .
     """
+    // Note: accumulation_curve.py always exits 0, even when
+    // positive_control_report.json's "passed" is false -- see that
+    // script's inline comment and .living/decisions.md (2026-09-09).
+    // Check the report file's content, not this task's exit status, to
+    // learn whether the positive-control check passed.
 
     stub:
     """
     touch accumulation_curve_summary.tsv pangenome_powerlaw_fit.tsv \\
-          clade_contribution.tsv permutation_marginals.parquet
+          clade_contribution.tsv permutation_marginals.parquet \\
+          positive_control_report.json
     """
 }

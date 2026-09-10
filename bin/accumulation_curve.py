@@ -10,6 +10,7 @@ explicit instruction to implement it here rather than only as a standalone
 script; a violation exits nonzero."""
 import argparse
 import csv
+import json
 import sys
 
 import numpy as np
@@ -130,9 +131,15 @@ def main():
     _write_raw_marginals_parquet(walks, permutation_ids, raw_marginals_path, args.version_tag)
 
     # Validation #4 (design doc: "Implement as an automated assertion in
-    # bin/accumulation_curve.py's output validation"). A violation means a
-    # real bug in the ANI calls or the incidence matrix, so fail the process
-    # rather than publishing outputs that look fine.
+    # bin/accumulation_curve.py's output validation"). Originally exited
+    # nonzero on failure; changed 2026-09-09 (.living/decisions.md) after
+    # running against real n=100 pilot data showed this fires extensively
+    # due to a real, multi-causal annotation-quality confound (see
+    # .living/findings/genome-ani-vs-protein-cluster-redundancy.md, F-001),
+    # not a pipeline bug -- exiting nonzero would mark the real Nextflow
+    # task FAILED, trigger pointless retries (the failure is deterministic
+    # on the same data), and risk outputs not publishing. Write the result
+    # to a report file instead so it stays visible without gating the task.
     result = check_positive_control(raw_marginals_path, args.genome_metadata,
                                      args.max_marginal_frac)
     if not result["passed"]:
@@ -141,7 +148,10 @@ def main():
                   f"{v['median_marginal']}/{v['n_proteins']} proteins "
                   f"({v['frac']:.1%}) >= threshold {args.max_marginal_frac:.1%}",
                   file=sys.stderr)
-        sys.exit(1)
+    with open(f"{args.outdir}/positive_control_report.json", "w") as fh:
+        json.dump({"passed": result["passed"], "violations": result["violations"],
+                    "max_marginal_frac": args.max_marginal_frac,
+                    "version_tag": args.version_tag}, fh, indent=2)
 
 
 if __name__ == "__main__":

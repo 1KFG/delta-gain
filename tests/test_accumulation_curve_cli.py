@@ -113,29 +113,44 @@ def _run_cli(tmp_path, extra_args=()):
     )
 
 
-def _genome_row(asmid, component, cluster_class, n_proteins):
+def _genome_row(asmid, component, cluster_class, n_proteins, best_ani_partner=None):
     return {"asmid": asmid, "n_proteins": n_proteins, "complete_pct": 95.0,
             "n50_bp": 100000, "component_id": component,
-            "cluster_class": cluster_class, "clade_rank": "PHYLUM",
-            "clade_label": "Ascomycota"}
+            "cluster_class": cluster_class, "best_ani_partner": best_ani_partner,
+            "clade_rank": "PHYLUM", "clade_label": "Ascomycota"}
 
 
-def test_positive_control_violation_exits_nonzero(tmp_path):
+def test_positive_control_violation_writes_report_without_failing_task(tmp_path):
     """Validation #4 is wired into accumulation_curve.py as an automated
-    assertion (design doc: "Implement as an automated assertion in
+    check (design doc: "Implement as an automated assertion in
     bin/accumulation_curve.py's output validation"). Two same-component
     redundant_strain genomes with completely disjoint protein content are
-    exactly the impossible case that assertion exists to catch."""
+    exactly the impossible case that check exists to catch.
+
+    Changed 2026-09-09 (.living/decisions.md) to NOT exit nonzero on
+    failure: real n=100 pilot data showed this fires extensively due to a
+    real, multi-causal annotation-quality confound (F-001), not a pipeline
+    bug, and a nonzero exit would mark the real Nextflow task FAILED,
+    trigger pointless retries, and risk outputs not publishing. The result
+    is written to positive_control_report.json instead, and the task
+    still exits 0."""
     incidence_rows = ([("GENOME_A", f"cA{i}") for i in range(10)]
                       + [("GENOME_B", f"cB{i}") for i in range(10)])
-    genome_rows = [_genome_row("GENOME_A", "comp_1", "redundant_strain", 10),
-                   _genome_row("GENOME_B", "comp_1", "redundant_strain", 10)]
+    genome_rows = [_genome_row("GENOME_A", "comp_1", "redundant_strain", 10, best_ani_partner="GENOME_B"),
+                   _genome_row("GENOME_B", "comp_1", "redundant_strain", 10, best_ani_partner="GENOME_A")]
     _write_synthetic_inputs(tmp_path, incidence_rows, genome_rows)
 
     result = _run_cli(tmp_path)
-    assert result.returncode == 1, result.stdout
+    assert result.returncode == 0, result.stderr
     assert "VIOLATION" in result.stderr
     assert "GENOME_" in result.stderr
+
+    import json
+    with open(tmp_path / "positive_control_report.json") as fh:
+        report = json.load(fh)
+    assert report["passed"] is False
+    assert len(report["violations"]) > 0
+    assert report["violations"][0]["asmid"] in ("GENOME_A", "GENOME_B")
 
 
 def test_positive_control_passes_for_genuinely_redundant_pair(tmp_path):
@@ -146,13 +161,19 @@ def test_positive_control_passes_for_genuinely_redundant_pair(tmp_path):
     than one distinct marginal value to work with."""
     incidence_rows = ([(g, f"c{i}") for g in ("GENOME_A", "GENOME_B") for i in range(10)]
                       + [("GENOME_C", f"cC{i}") for i in range(10)])
-    genome_rows = [_genome_row("GENOME_A", "comp_1", "redundant_strain", 10),
-                   _genome_row("GENOME_B", "comp_1", "redundant_strain", 10),
+    genome_rows = [_genome_row("GENOME_A", "comp_1", "redundant_strain", 10, best_ani_partner="GENOME_B"),
+                   _genome_row("GENOME_B", "comp_1", "redundant_strain", 10, best_ani_partner="GENOME_A"),
                    _genome_row("GENOME_C", "comp_2", "singleton_isolated", 10)]
     _write_synthetic_inputs(tmp_path, incidence_rows, genome_rows)
 
     result = _run_cli(tmp_path)
     assert result.returncode == 0, result.stderr
+
+    import json
+    with open(tmp_path / "positive_control_report.json") as fh:
+        report = json.load(fh)
+    assert report["passed"] is True
+    assert report["violations"] == []
 
 
 def test_mismatched_genome_universes_raise(tmp_path):
