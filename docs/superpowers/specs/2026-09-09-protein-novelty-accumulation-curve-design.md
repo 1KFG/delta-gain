@@ -238,14 +238,24 @@ as present with undefined behavior). Explicitly:
   permutations in the tails to not be dominated by a couple of extreme
   order statistics (P=100 leaves only ~2-3 permutations below the 2.5th
   percentile; P=1000 leaves ~25, which is reasonably stable). Default
-  `params.n_permutations` to **1000**, but treat this as provisional until
-  validation #1 (permutation-count convergence) empirically confirms it at
-  whatever scale (pilot, scale-up, full ~22k) this actually runs — per-
-  permutation cost is not yet measured at any of these scales, so SLURM
-  walltime for `ACCUMULATION_CURVE` should be set generously (not tightly
-  estimated) until real timing data from an actual run establishes it,
-  consistent with this project's general practice of sizing job resources
-  from measured timing rather than a guess.
+  `params.n_permutations` to **1000**.
+
+  **Validation #1 result at n=100 pilot scale (measured 2026-09-09, script-level,
+  job 28206550's real data)**: ran P=50/200/500 directly. Internal `alpha`
+  mean was already stable at P=50 (0.278) and barely moved through P=500
+  (0.287); the 95% CI width was too narrow at P=50 (0.235, an
+  underestimate) and stabilized between P=200 (0.316) and P=500 (0.292) —
+  confirming P=500-1000 is a reasonable production choice **at this
+  n=100 scale**. Per-permutation cost measured at ~0.43 sec/permutation
+  (linear scaling confirmed: 26s/89s/216s at P=50/200/500), so P=1000 takes
+  ~7 minutes at n=100. **This timing does not extrapolate to the 500-1000
+  genome scale-up or the full ~22k run** — each permutation's walk touches
+  more genomes and more total clusters at larger scale, so per-permutation
+  cost must be re-measured there rather than assumed from this number.
+  SLURM walltime for `ACCUMULATION_CURVE` should still be set generously
+  (not tightly estimated from the n=100 figure) until that re-measurement
+  happens, consistent with this project's general practice of sizing job
+  resources from measured timing rather than a guess.
 
 ## Pipeline integration
 
