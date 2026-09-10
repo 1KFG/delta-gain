@@ -185,21 +185,58 @@ processes succeed end-to-end: FETCH_UNIPROT_FUNGI, both
 FETCH_UNIPROT_FUNGI_FTP divisions, both CONVERT_DAT_TO_FASTA divisions,
 COMBINE_UNIPROT_FASTA, MMSEQS_LINCLUST). **Not yet run for real past small
 tests** — the FTP path is a genuine 13GB download + a long, resource-heavy
-linclust job on ~17.5M sequences (`highmem`, 64 cpus, 256GB, 48h in the
-profile config) and hasn't been submitted yet; confirm before doing so.
+linclust job on ~17.5M sequences (`epyc`, 32 cpus, 256GB, 48h in the profile
+config) and hasn't been submitted yet; confirm before doing so.
 
-`modules/search/DIAMOND_NOVELTY_SCREEN/` (real DIAMOND command against
-`nr_cluster_seq.dmnd` with `--taxonlist`) is written but **still not wired
-into `protein_novelty.nf`**.
+**BFD-side extraction and novelty screen — wired 2026-09-08 (HANDOFF.md
+items 1/3/4):**
 
-**Still to do:** the actual BFD protein extraction step (which annotated-
-protein FASTA per ASMID feeds the novelty search — likely
-`Fungi_BFD/nextflow/input/pep/`, not yet confirmed for the full 22k set),
-wiring `DIAMOND_NOVELTY_SCREEN` (BFD proteins vs. both `nr_cluster_seq.dmnd`
-*and* this new UniProt-fungi non-redundant set) into the workflow,
-E-value/coverage binning (`bin/bin_novelty_hits.py`, not yet written), and the
-Stage 3b controls (artefact/contamination/fast-evolving-family filters) from
-the design doc.
+- **`BUILD_PEP_MANIFEST`** (`bin/build_pep_manifest.py`) maps each
+  samples.csv ASMID to its `Fungi_BFD_runs/input/pep/<tag>.proteins.fa`
+  file. The pep filenames are NOT ASMID-keyed — they're named by
+  `makeSampleTag(SPECIES, STRAIN)`, the exact same species+strain
+  sanitization convention `Fungi_BFD/nextflow/modules/common/utils.nf`
+  uses, ported to Python here rather than reimplemented ad hoc. As of
+  2026-09-08: 10,922/23,683 samples.csv rows (46%) have a matching pep file
+  (the annotation run is still in progress — most of the ~22k genomes
+  aren't annotated yet); 6 tag collisions exist where two ASMIDs map to the
+  same species+strain tag (e.g. two `Fusarium graminearum PH-1` accessions)
+  — those are flagged `ambiguous_tag` rather than guessed at, since the
+  filename alone can't disambiguate which ASMID's proteins are in the file.
+  `params.n_test` caps how many `matched` rows get used downstream (see the
+  profile config's SAFETY DEFAULT — 100, for an initial pilot, not the full
+  annotated set yet).
+- **`COMBINE_BFD_PROTEINS`** (`bin/combine_bfd_proteins.py`) concatenates
+  the matched pep FASTAs, prefixing every sequence ID with its ASMID
+  (`<ASMID>__<original_id>`) so provenance survives dereplication —
+  otherwise funannotate's per-genome locus tags collide across genomes.
+- **`MMSEQS_LINCLUST`** (generalized, see its header comment) dereplicates
+  BFD's own combined protein set the same way it dereplicates UniProt-fungi
+  — reused via a DSL2 `include ... as` alias
+  (`MMSEQS_LINCLUST_BFD`/`MMSEQS_LINCLUST_UNIPROT`), not duplicated.
+- **`SPLIT_FASTA`** (seqkit) chunks the dereplicated representative set for
+  parallel DIAMOND search.
+- **`DIAMOND_NOVELTY_SCREEN`** (vs. `nr_cluster_seq.dmnd`, `--taxonlist`)
+  and the new **`DIAMOND_MAKEDB` → `DIAMOND_SEARCH_UNIPROT`** (vs. this
+  pipeline's own dereplicated UniProt-fungi set — no `--taxonlist` needed,
+  already fungi-only by construction) both run per chunk.
+- **`BIN_NOVELTY_HITS`** (`bin/bin_novelty_hits.py`) combines both targets'
+  hits per query into `strong_hit`/`weak_hit`/`no_hit`, E-value + coverage
+  per the design doc's framing fix. **Threshold defaults are placeholders**
+  (reuses `params.diamond_evalue`'s existing 1e-5 for "strong", 70%
+  bidirectional coverage as a conventional rule of thumb) — not yet backed
+  by this dataset's real hit-score distribution; revisit once a real pilot
+  run's output is in hand.
+
+**Full `protein_novelty.nf` graph (15 processes) is `-stub-run` validated
+end-to-end.** Still stub-only past this point, though: the FTP/linclust
+UniProt path (see above) and the BFD-side chain both need a real run before
+any of their numbers mean anything — start with the pilot scale
+(`params.n_test`), not the full annotated set.
+
+**Not yet built:** the Stage 3b controls (artefact/contamination/
+fast-evolving-family filters) and Stage 5 domain/fold sorting from the
+design doc — both still design-doc-only.
 
 ## Layout
 

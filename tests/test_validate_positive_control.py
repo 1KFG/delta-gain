@@ -26,6 +26,7 @@ def test_redundant_strain_conditioned_on_ani_partner_first(tmp_path):
         "asmid": ["A", "B", "C"],
         "component_id": ["comp_1", "comp_1", "comp_2"],
         "cluster_class": ["redundant_strain", "redundant_strain", "singleton_isolated"],
+        "best_ani_partner": ["B", "A", None],
         "n_proteins": [3, 3, 1],
     })
     pq.write_table(genome_meta, tmp_path / "genome_metadata.parquet")
@@ -62,6 +63,7 @@ def test_detects_a_real_violation():
         "asmid": ["A", "B"],
         "component_id": ["comp_1", "comp_1"],
         "cluster_class": ["redundant_strain", "redundant_strain"],
+        "best_ani_partner": ["B", "A"],
         "n_proteins": [3, 3],
     })
     pq.write_table(genome_meta, os.path.join(tmp, "genome_metadata.parquet"))
@@ -72,3 +74,45 @@ def test_detects_a_real_violation():
     )
     assert result["passed"] is False
     assert result["violations"][0]["asmid"] == "A"
+
+
+def test_loose_component_does_not_falsely_condition_on_a_distant_chain_mate(tmp_path):
+    """Real bug found running this against the n=100 pilot data (2026-09-09):
+    conditioning on "any same-component genome inserted earlier" is wrong
+    when a component is a loose chain (find_components.py's union-find
+    graph), not a clique. A is redundant_strain with best_ani_partner C
+    (99.99% ANI, truly near-duplicate), but shares component comp_1 with B
+    (a much more distantly related chain-mate). B appearing early must NOT
+    count as conditioning A -- only C appearing early should."""
+    raw = pa.table({
+        "permutation_id": [0, 0, 0],
+        "asmid": ["B", "A", "C"],
+        "position": [1, 2, 3],
+        # A follows B (a distant chain-mate, not its real partner) and
+        # legitimately introduces lots of new content -- NOT a violation,
+        # since A's real partner C hasn't appeared yet at A's position.
+        "new_internal_count": [5, 8, 0],
+        "new_external_count": [0, 0, 0],
+    })
+    pq.write_table(raw, tmp_path / "permutation_marginals.parquet")
+    genome_meta = pa.table({
+        "asmid": ["A", "B", "C"],
+        "component_id": ["comp_1", "comp_1", "comp_1"],
+        "cluster_class": ["redundant_strain", "singleton_isolated", "redundant_strain"],
+        "best_ani_partner": ["C", None, "A"],
+        "n_proteins": [10, 10, 10],
+    })
+    pq.write_table(genome_meta, tmp_path / "genome_metadata.parquet")
+
+    result = check_positive_control(
+        str(tmp_path / "permutation_marginals.parquet"),
+        str(tmp_path / "genome_metadata.parquet"),
+        max_marginal_frac=0.05,
+    )
+    # A has no conditioned observation at all in this single permutation
+    # (its real partner C appears AFTER it, at position 3) -- untestable,
+    # not a violation. The old "any component member" logic would have
+    # wrongly treated B's earlier position as conditioning A and flagged
+    # A's real 8/10 marginal as a violation.
+    assert result["passed"] is True
+    assert result["violations"] == []

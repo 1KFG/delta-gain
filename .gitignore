@@ -26,3 +26,7 @@ lib/uniprot_fungi/
 
 # subagent-driven-development scratch workspace (ledger, briefs, review packages)
 .superpowers/
+
+# Python bytecode cache
+__pycache__/
+*.pyc

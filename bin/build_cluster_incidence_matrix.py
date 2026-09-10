@@ -82,6 +82,7 @@ def _read_genome_classification(path):
             info[asmid] = {
                 "component_id": row["component_id"],
                 "cluster_class": row["cluster_class"],
+                "best_ani_partner": row.get("best_ani_partner") or None,
             }
     return info
 
@@ -209,6 +210,7 @@ def build_incidence_matrix(clusters_tsv, provenance_tsv, novelty_bins_tsv,
             "n50_bp": n50_by_asmid.get(asmid),
             "component_id": cls_info.get("component_id"),
             "cluster_class": cls_info.get("cluster_class"),
+            "best_ani_partner": cls_info.get("best_ani_partner"),
             "clade_rank": clade_rank,
             "clade_label": clade_label,
             **tax_row,
