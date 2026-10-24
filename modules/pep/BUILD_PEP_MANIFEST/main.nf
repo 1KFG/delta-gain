@@ -17,6 +17,7 @@ process BUILD_PEP_MANIFEST {
         path(samples_csv)
         val(pep_dir)
         val(n_test)
+        val(seed)
 
     output:
         path("bfd_pep_manifest.tsv"), emit: manifest
@@ -27,6 +28,7 @@ process BUILD_PEP_MANIFEST {
         --samples ${samples_csv} \\
         --pep-dir ${pep_dir} \\
         --n-test ${n_test} \\
+        --seed ${seed} \\
         --out bfd_pep_manifest.tsv
     """
 

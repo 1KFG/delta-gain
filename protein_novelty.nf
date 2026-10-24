@@ -105,7 +105,7 @@ workflow {
     // Step 3: BFD's own annotated proteins -- extract, dereplicate, screen.
     samples_csv = file(params.samples, checkIfExists: true)
 
-    BUILD_PEP_MANIFEST(samples_csv, params.pep_dir, params.n_test)
+    BUILD_PEP_MANIFEST(samples_csv, params.pep_dir, params.n_test, params.n_test_seed)
     COMBINE_BFD_PROTEINS(BUILD_PEP_MANIFEST.out.manifest)
     MMSEQS_LINCLUST_BFD(COMBINE_BFD_PROTEINS.out.fasta.map { fasta -> tuple('bfd_proteins', fasta) })
 

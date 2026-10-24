@@ -26,6 +26,7 @@ bookkeeping fact (see HANDOFF.md item 1), not just a missing row.
 import argparse
 import csv
 import os
+import random
 import re
 import sys
 from collections import Counter
@@ -57,9 +58,14 @@ def main():
     ap.add_argument("--pep-dir", required=True, help="Fungi_BFD_runs/input/pep")
     ap.add_argument("--n-test", type=int, default=0,
                      help="cap the number of matched rows used downstream "
-                          "(0 = no cap); rows past the cap are still listed "
-                          "in the manifest, marked matched_excluded_by_n_test, "
-                          "so annotation coverage stays fully visible")
+                          "(0 = no cap). The rows kept are a seeded random "
+                          "sample of all matched rows (--seed). Rows not "
+                          "kept are still listed in the manifest, marked "
+                          "matched_excluded_by_n_test, so annotation "
+                          "coverage stays fully visible")
+    ap.add_argument("--seed", type=int, default=42,
+                     help="random seed for the --n-test sample (same seed "
+                          "and same input give the same sample)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -73,25 +79,38 @@ def main():
     # for a directory this large).
     pep_files = set(os.listdir(args.pep_dir))
 
+    def pep_name(tag):
+        if f"{tag}.proteins.fa.gz" in pep_files:
+            return f"{tag}.proteins.fa.gz"
+        return f"{tag}.proteins.fa"
+
+    # Rows that can be used: unique tag and a pep file on disk. If --n-test
+    # is set, keep a seeded random sample of them (not the first N in
+    # samples.csv order, which is not a random subset of the taxa).
+    eligible = [i for i, tag in enumerate(tags)
+                if tag_counts[tag] == 1 and pep_name(tag) in pep_files]
+    if args.n_test > 0 and len(eligible) > args.n_test:
+        keep = set(random.Random(args.seed).sample(eligible, args.n_test))
+    else:
+        keep = set(eligible)
+
+    eligible_set = set(eligible)
     manifest_rows = []
     n_matched_used = 0
-    for row, tag in zip(rows, tags):
+    for i, (row, tag) in enumerate(zip(rows, tags)):
         asmid = row["ASMID"].strip()
         # Fungi_BFD_runs now stores pep files gzipped (2026-10); accept the
         # older plain .fa name too.
-        if f"{tag}.proteins.fa.gz" in pep_files:
-            pep_path = os.path.join(args.pep_dir, f"{tag}.proteins.fa.gz")
-        else:
-            pep_path = os.path.join(args.pep_dir, f"{tag}.proteins.fa")
+        pep_path = os.path.join(args.pep_dir, pep_name(tag))
 
         if tag_counts[tag] > 1:
             status = "ambiguous_tag"
-        elif os.path.basename(pep_path) in pep_files:
-            if args.n_test > 0 and n_matched_used >= args.n_test:
-                status = "matched_excluded_by_n_test"
-            else:
+        elif i in eligible_set:
+            if i in keep:
                 status = "matched"
                 n_matched_used += 1
+            else:
+                status = "matched_excluded_by_n_test"
         else:
             status = "not_annotated"
             pep_path = ""
