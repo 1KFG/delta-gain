@@ -23,11 +23,13 @@ process COMPRESS_ZSTD {
         path("${f.name}.{zst,gz}"), emit: compressed
 
     script:
+    // Input is read from stdin: Nextflow stages `f` as a symlink and zstd
+    // silently skips symlinked input files (no error, no output) unless -f.
     // zstd if params.zstd_bin is executable on the node; otherwise pigz;
     // otherwise gzip. The output suffix (.zst or .gz) shows which was used.
     """
     if [ -x "${params.zstd_bin}" ]; then
-        ${params.zstd_bin} -T${task.cpus} -${params.zstd_level} -q -o ${f.name}.zst ${f}
+        ${params.zstd_bin} -T${task.cpus} -${params.zstd_level} -q -o ${f.name}.zst < ${f}
         ${params.zstd_bin} -t -q ${f.name}.zst
     elif command -v pigz >/dev/null 2>&1; then
         pigz -p ${task.cpus} -6 -c ${f} > ${f.name}.gz
