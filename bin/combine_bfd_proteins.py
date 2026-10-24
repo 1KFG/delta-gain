@@ -12,13 +12,15 @@ would need a real parser.
 """
 import argparse
 import csv
+import gzip
 import sys
 
 
 def iter_fasta(path):
     header = None
     seq_lines = []
-    with open(path) as fh:
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt") as fh:
         for line in fh:
             line = line.rstrip("\n")
             if line.startswith(">"):

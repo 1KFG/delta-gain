@@ -69,15 +69,24 @@ def main():
     tags = [make_sample_tag(row["SPECIES"], row["STRAIN"]) for row in rows]
     tag_counts = Counter(tags)
 
+    # One directory listing instead of ~23k per-file stat calls (slow on GPFS
+    # for a directory this large).
+    pep_files = set(os.listdir(args.pep_dir))
+
     manifest_rows = []
     n_matched_used = 0
     for row, tag in zip(rows, tags):
         asmid = row["ASMID"].strip()
-        pep_path = os.path.join(args.pep_dir, f"{tag}.proteins.fa")
+        # Fungi_BFD_runs now stores pep files gzipped (2026-10); accept the
+        # older plain .fa name too.
+        if f"{tag}.proteins.fa.gz" in pep_files:
+            pep_path = os.path.join(args.pep_dir, f"{tag}.proteins.fa.gz")
+        else:
+            pep_path = os.path.join(args.pep_dir, f"{tag}.proteins.fa")
 
         if tag_counts[tag] > 1:
             status = "ambiguous_tag"
-        elif os.path.exists(pep_path):
+        elif os.path.basename(pep_path) in pep_files:
             if args.n_test > 0 and n_matched_used >= args.n_test:
                 status = "matched_excluded_by_n_test"
             else:

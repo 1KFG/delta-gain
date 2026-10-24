@@ -11,7 +11,7 @@
 
 process COMBINE_BFD_PROTEINS {
     label 'combine_bfd_proteins'
-    publishDir "${params.outdir}", mode: 'copy'
+    // No publishDir: the published copies are zstd-compressed by COMPRESS_ZSTD.
 
     input:
         path(manifest_tsv)

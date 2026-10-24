@@ -35,7 +35,7 @@ process DIAMOND_CLUSTER {
     tag       { prefix }
     label     'diamond_cluster'
     container params.diamond_container
-    publishDir "${params.outdir}", mode: 'copy'
+    // No publishDir: COMPRESS_ZSTD publishes the compressed copy.
 
     input:
         tuple val(prefix), path(combined_fasta)
@@ -64,7 +64,7 @@ process DIAMOND_CLUSTER {
 process EXTRACT_CLUSTER_REPS {
     tag       { prefix }
     label     'extract_cluster_reps'
-    publishDir "${params.outdir}", mode: 'copy'
+    // No publishDir: COMPRESS_ZSTD publishes the compressed copy.
 
     input:
         tuple val(prefix), path(clusters_tsv), path(combined_fasta)

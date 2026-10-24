@@ -22,7 +22,10 @@ process MMSEQS_LINCLUST {
     // output only existed in work/ (never copied out) until this was added
     // -- caught after the fact, output recovered manually from the work dir
     // for that run. Don't repeat for future runs.
-    publishDir "${params.outdir}", mode: 'copy'
+    // Only the UniProt-fungi reference output is published as plain files
+    // (it is a DIAMOND makedb input). The BFD-side outputs are published
+    // zstd-compressed by COMPRESS_ZSTD instead.
+    publishDir "${params.outdir}", mode: 'copy', saveAs: { fn -> prefix == 'bfd_proteins' ? null : fn }
 
     input:
         tuple val(prefix), path(combined_fasta)

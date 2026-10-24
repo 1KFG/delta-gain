@@ -66,6 +66,7 @@ include { DIAMOND_NOVELTY_SCREEN }  from './modules/search/DIAMOND_NOVELTY_SCREE
 include { DIAMOND_SEARCH_UNIPROT }  from './modules/search/DIAMOND_SEARCH_UNIPROT/main.nf'
 include { BIN_NOVELTY_HITS }        from './modules/binning/BIN_NOVELTY_HITS/main.nf'
 include { DIAMOND_CLUSTER; EXTRACT_CLUSTER_REPS } from './modules/dedup/DIAMOND_CLUSTER/main.nf'
+include { COMPRESS_ZSTD }          from './modules/compress/COMPRESS_ZSTD/main.nf'
 include { COMPARE_CLUSTERINGS }     from './modules/binning/COMPARE_CLUSTERINGS/main.nf'
 include { BUILD_CLUSTER_INCIDENCE_MATRIX } from './modules/binning/BUILD_CLUSTER_INCIDENCE_MATRIX/main.nf'
 include { ACCUMULATION_CURVE }             from './modules/binning/ACCUMULATION_CURVE/main.nf'
@@ -181,5 +182,17 @@ workflow {
     COMPARE_CLUSTERINGS(
         MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
         EXTRACT_CLUSTER_REPS.out.cluster_membership.map { prefix, tsv -> tsv },
+    )
+
+    // Published copies of the large BFD-side text outputs are zstd-compressed.
+    // Producers no longer publish the plain files (see their saveAs/publishDir
+    // comments); downstream processes still read the plain files from work/.
+    COMPRESS_ZSTD(
+        COMBINE_BFD_PROTEINS.out.fasta
+            .mix(COMBINE_BFD_PROTEINS.out.provenance)
+            .mix(MMSEQS_LINCLUST_BFD.out.representatives.map { prefix, f -> f })
+            .mix(MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, f -> f })
+            .mix(EXTRACT_CLUSTER_REPS.out.representatives.map { prefix, f -> f })
+            .mix(EXTRACT_CLUSTER_REPS.out.cluster_membership.map { prefix, f -> f })
     )
 }
