@@ -72,11 +72,16 @@ include { BUILD_CLUSTER_INCIDENCE_MATRIX } from './modules/binning/BUILD_CLUSTER
 include { ACCUMULATION_CURVE }             from './modules/binning/ACCUMULATION_CURVE/main.nf'
 include { SETUP_PYTHON_PIP_CACHE }         from './modules/setup/SETUP_PYTHON_PIP_CACHE/main.nf'
 
+// Nextflow 26.04 passes `--flag false` as the STRING 'false', which is truthy
+// in Groovy, so boolean switches must be parsed explicitly (2026-11-04: both
+// switches were silently ignored on the command line).
+def flagOn(v) { v.toString().toLowerCase() in ['true', '1', 'yes'] }
+
 workflow {
     // Small connectivity/content smoke test (REST) -- cheap, safe at any scale.
     // params.run_uniprot_smoke_test (default true): a REST 429 from UniProt
     // here fails the whole run under errorStrategy 'finish' (2026-11-04).
-    if (params.run_uniprot_smoke_test) {
+    if (flagOn(params.run_uniprot_smoke_test)) {
         FETCH_UNIPROT_FUNGI(Channel.of('reviewed'))
     }
 
@@ -181,7 +186,7 @@ workflow {
     // BFD protein set a second way, then compare -- not fed into
     // SPLIT_FASTA/search/binning above.
     // params.run_diamond_cluster (default true) lets very large runs skip it.
-    if (params.run_diamond_cluster) {
+    if (flagOn(params.run_diamond_cluster)) {
         DIAMOND_CLUSTER(COMBINE_BFD_PROTEINS.out.fasta.map { fasta -> tuple('bfd_proteins', fasta) })
         EXTRACT_CLUSTER_REPS(DIAMOND_CLUSTER.out.clusters_and_fasta)
 
@@ -198,7 +203,7 @@ workflow {
         .mix(COMBINE_BFD_PROTEINS.out.provenance)
         .mix(MMSEQS_LINCLUST_BFD.out.representatives.map { prefix, f -> f })
         .mix(MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, f -> f })
-    if (params.run_diamond_cluster) {
+    if (flagOn(params.run_diamond_cluster)) {
         compress_ch = compress_ch
             .mix(EXTRACT_CLUSTER_REPS.out.representatives.map { prefix, f -> f })
             .mix(EXTRACT_CLUSTER_REPS.out.cluster_membership.map { prefix, f -> f })
