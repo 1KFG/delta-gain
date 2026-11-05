@@ -65,6 +65,7 @@ include { SPLIT_FASTA }             from './modules/split/SPLIT_FASTA/main.nf'
 include { DIAMOND_NOVELTY_SCREEN }  from './modules/search/DIAMOND_NOVELTY_SCREEN/main.nf'
 include { DIAMOND_SEARCH_UNIPROT }  from './modules/search/DIAMOND_SEARCH_UNIPROT/main.nf'
 include { BIN_NOVELTY_HITS }        from './modules/binning/BIN_NOVELTY_HITS/main.nf'
+include { BIN_NOVELTY_HITS_STREAM } from './modules/binning/BIN_NOVELTY_HITS_STREAM/main.nf'
 include { DIAMOND_CLUSTER; EXTRACT_CLUSTER_REPS } from './modules/dedup/DIAMOND_CLUSTER/main.nf'
 include { COMPRESS_ZSTD }          from './modules/compress/COMPRESS_ZSTD/main.nf'
 include { COMPARE_CLUSTERINGS }     from './modules/binning/COMPARE_CLUSTERINGS/main.nf'
@@ -130,11 +131,30 @@ workflow {
     // starving DIAMOND_SEARCH_UNIPROT after the first chunk.
     DIAMOND_SEARCH_UNIPROT(chunks_ch, DIAMOND_MAKEDB.out.dmnd.first())
 
-    BIN_NOVELTY_HITS(
-        MMSEQS_LINCLUST_BFD.out.representatives.map { prefix, fasta -> fasta },
-        DIAMOND_NOVELTY_SCREEN.out.map { chunk_id, tsv -> tsv }.collect(),
-        DIAMOND_SEARCH_UNIPROT.out.map { chunk_id, tsv -> tsv }.collect(),
-    )
+    reps_ch = MMSEQS_LINCLUST_BFD.out.representatives.map { prefix, fasta -> fasta }
+    if (flagOn(params.bin_streaming)) {
+        // Streaming binning: pair each chunk with its two hit files, sort by
+        // chunk id so the order matches the query FASTA, then split into
+        // aligned lists. See BIN_NOVELTY_HITS_STREAM.
+        sorted_chunks = chunks_ch
+            .join(DIAMOND_NOVELTY_SCREEN.out)
+            .join(DIAMOND_SEARCH_UNIPROT.out)
+            .toSortedList { a, b -> a[0] <=> b[0] }
+        BIN_NOVELTY_HITS_STREAM(
+            reps_ch,
+            sorted_chunks.map { l -> l.collect { it[1] } },
+            sorted_chunks.map { l -> l.collect { it[2] } },
+            sorted_chunks.map { l -> l.collect { it[3] } },
+        )
+        bins_ch = BIN_NOVELTY_HITS_STREAM.out.bins
+    } else {
+        BIN_NOVELTY_HITS(
+            reps_ch,
+            DIAMOND_NOVELTY_SCREEN.out.map { chunk_id, tsv -> tsv }.collect(),
+            DIAMOND_SEARCH_UNIPROT.out.map { chunk_id, tsv -> tsv }.collect(),
+        )
+        bins_ch = BIN_NOVELTY_HITS.out.bins
+    }
 
     // Accumulation-curve analysis (design doc: BUILD_CLUSTER_INCIDENCE_MATRIX
     // + ACCUMULATION_CURVE). genome_classification_tsv is Stage 1's
@@ -164,7 +184,7 @@ workflow {
         BUILD_CLUSTER_INCIDENCE_MATRIX(
             MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
             COMBINE_BFD_PROTEINS.out.provenance,
-            BIN_NOVELTY_HITS.out.bins,
+            bins_ch,
             samples_csv,
             Channel.fromPath(params.bfd_duckdb_busco_parquet, checkIfExists: true),
             Channel.fromPath(params.bfd_duckdb_asm_stats_parquet, checkIfExists: true),
