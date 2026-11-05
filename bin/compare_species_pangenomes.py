@@ -1,75 +1,63 @@
 #!/usr/bin/env python3
 """Cross-species comparison of pangenomes (follows bin/species_pangenome.py).
 
-Inputs: the incidence matrix, samples.csv (taxonomy), and the table written
-by species_pangenome.py (so the species set, --min-genomes filter and
---exclude-asmids choice are identical in both steps).
+Inputs: the incidence matrix, samples.csv (taxonomy), and the table written by
+species_pangenome.py. The species set is taken from that table and each
+species' genome count is re-derived here and must match the table's n_genomes,
+so a different --exclude-asmids between the two steps fails loudly.
 
-Outputs:
-  species_cluster_sharing.tsv  one row per species pair that shares >= 1
-      cluster: shared count, Jaccard of the two species' full cluster sets,
-      and whether the pair is in the same genus / family.
-  taxon_pangenome_summary.tsv  for each --ranks level (default GENUS, FAMILY,
-      ORDER, CLASS, PHYLUM): n species, median alpha, median core fraction,
-      median rarefied pangenome size, share of species with alpha < 1 (open).
-
-A cluster present in more than --max-species-per-cluster species is too broad
-to say anything about relatedness and would make pair counting quadratic. It
-is left out of the pair counts and counted per species in n_broad_clusters
-(reported in the sharing table's companion file species_broad_clusters.tsv),
-so the cap is visible rather than silent.
+Outputs (in --outdir):
+  species_cluster_sharing.tsv  one row per species pair sharing >= 1 cluster:
+      shared_clusters / jaccard over the species' FULL cluster sets (exact, via
+      a sparse species x cluster product), and shared_clusters_narrow /
+      jaccard_narrow over clusters present in at most --max-species-per-cluster
+      species (broad clusters say little about relatedness), plus same_genus /
+      same_family flags.
+  taxon_pangenome_summary.tsv  per taxon at each --ranks level: species counts
+      by openness (open / closed / unresolved), fraction open among resolved
+      species (closed species stay in the denominator), medians of alpha,
+      core_per_mean_genome, rarefied_pan_size and rarefied_core.
+  lineage_conflicts.tsv        species whose genomes disagree on a taxonomic rank
+      (the majority label is used).
 """
 import argparse
 import csv
-import itertools
+import sys
+from collections import Counter
 from statistics import median
 
-from species_pangenome import load_incidence, load_exclude
+import numpy as np
+import scipy.sparse as sp
+
+from species_pangenome import load_pairs, load_species, load_exclude, group_species
 
 RANKS = ["GENUS", "FAMILY", "ORDER", "CLASS", "PHYLUM"]
 
 
-def load_taxonomy(samples_csv):
-    tax, species_of = {}, {}
+def load_lineage(samples_csv):
+    per = {}
     with open(samples_csv) as fh:
         for row in csv.DictReader(fh):
-            species_of[row["ASMID"]] = (row.get("SPECIES") or "").strip()
-            tax[row["ASMID"]] = {r: (row.get(r) or "").strip() for r in RANKS}
-    return species_of, tax
+            name = (row.get("SPECIES") or "").strip()
+            if name:
+                per.setdefault(name, []).append(tuple((row.get(r) or "").strip() for r in RANKS))
+    lineage, conflicts = {}, []
+    for name, tuples in per.items():
+        lin = {}
+        for i, r in enumerate(RANKS):
+            c = Counter(t[i] for t in tuples)
+            lin[r] = c.most_common(1)[0][0]
+            if len([k for k in c if k]) > 1:
+                conflicts.append({"species": name, "rank": r, "labels": ";".join(f"{k}:{v}" for k, v in c.items())})
+        lineage[name] = lin
+    return lineage, conflicts
 
 
-def species_cluster_sets(asmid_clusters, species_of, keep_species, exclude):
-    sets = {}
-    for asmid, clusters in asmid_clusters.items():
-        sp = species_of.get(asmid, "")
-        if asmid in exclude or sp not in keep_species:
-            continue
-        sets.setdefault(sp, set()).update(clusters)
-    return sets
-
-
-def sharing_pairs(sets, max_species):
-    by_cluster = {}
-    for sp, clusters in sets.items():
-        for c in clusters:
-            by_cluster.setdefault(c, []).append(sp)
-    shared, broad = {}, {sp: 0 for sp in sets}
-    for c, sps in by_cluster.items():
-        if len(sps) > max_species:
-            for sp in sps:
-                broad[sp] += 1
-            continue
-        for a, b in itertools.combinations(sorted(sps), 2):
-            shared[(a, b)] = shared.get((a, b), 0) + 1
-    return shared, broad
-
-
-def lineage_of_species(species_of, tax):
-    lin = {}
-    for asmid, sp in species_of.items():
-        if sp and sp not in lin:
-            lin[sp] = tax[asmid]
-    return lin
+def write_tsv(path, rows, fields):
+    with open(path, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
+        w.writeheader()
+        w.writerows(rows)
 
 
 def taxon_summary(rows, lineage, ranks):
@@ -81,23 +69,20 @@ def taxon_summary(rows, lineage, ranks):
             if label:
                 groups.setdefault(label, []).append(r)
         for label, rs in sorted(groups.items()):
-            alphas = [float(r["alpha_mean"]) for r in rs if r["alpha_mean"] != ""]
-            rare = [float(r["rarefied_pan_size"]) for r in rs if r["rarefied_pan_size"] != ""]
+            cnt = Counter(r["openness"] for r in rs)
+            resolved = cnt["open"] + cnt["closed"]
+            fl = lambda k: [float(r[k]) for r in rs if r[k] != ""]
+            med = lambda v: median(v) if v else ""
             out.append({
                 "rank": rank, "taxon": label, "n_species": len(rs),
-                "median_alpha": median(alphas) if alphas else "",
-                "frac_species_open_alpha_lt_1": (sum(a < 1 for a in alphas) / len(alphas)) if alphas else "",
-                "median_core_fraction": median(float(r["core_fraction"]) for r in rs),
-                "median_rarefied_pan_size": median(rare) if rare else "",
+                "n_open": cnt["open"], "n_closed": cnt["closed"], "n_unresolved": cnt["unresolved"],
+                "frac_open": cnt["open"] / resolved if resolved else "",
+                "median_alpha": med(fl("alpha")),
+                "median_core_per_mean_genome": med(fl("core_per_mean_genome")),
+                "median_rarefied_pan_size": med(fl("rarefied_pan_size")),
+                "median_rarefied_core": med(fl("rarefied_core")),
             })
     return out
-
-
-def write_tsv(path, rows, fields):
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, delimiter="\t")
-        w.writeheader()
-        w.writerows(rows)
 
 
 def main():
@@ -108,42 +93,73 @@ def main():
     ap.add_argument("--exclude-asmids", default="")
     ap.add_argument("--max-species-per-cluster", type=int, default=100)
     ap.add_argument("--ranks", default=",".join(RANKS))
+    ap.add_argument("--block", type=int, default=500, help="species per sparse-product block")
     ap.add_argument("--outdir", required=True)
     args = ap.parse_args()
 
     with open(args.species_table) as fh:
         rows = list(csv.DictReader(fh, delimiter="\t"))
-    keep = {r["species"] for r in rows}
-    species_of, tax = load_taxonomy(args.samples_csv)
-    lineage = lineage_of_species(species_of, tax)
-    sets = species_cluster_sets(load_incidence(args.incidence_matrix), species_of,
-                                keep, load_exclude(args.exclude_asmids))
-    missing = keep - set(sets)
-    if missing:
-        raise SystemExit(f"species in table but absent from incidence matrix: {sorted(missing)[:5]}")
+    sp_names = sorted(r["species"] for r in rows)
+    n_expected = {r["species"]: int(r["n_genomes"]) for r in rows}
 
-    shared, broad = sharing_pairs(sets, args.max_species_per_cluster)
-    pair_rows = []
-    for (a, b), n in sorted(shared.items()):
-        la, lb = lineage[a], lineage[b]
-        pair_rows.append({
-            "species_a": a, "species_b": b, "shared_clusters": n,
-            "jaccard": n / (len(sets[a]) + len(sets[b]) - n),
-            "same_genus": int(bool(la["GENUS"]) and la["GENUS"] == lb["GENUS"]),
-            "same_family": int(bool(la["FAMILY"]) and la["FAMILY"] == lb["FAMILY"]),
-        })
-    write_tsv(f"{args.outdir}/species_cluster_sharing.tsv", pair_rows,
-              ["species_a", "species_b", "shared_clusters", "jaccard", "same_genus", "same_family"])
-    write_tsv(f"{args.outdir}/species_broad_clusters.tsv",
-              [{"species": sp, "pan_size": len(sets[sp]), "n_broad_clusters": n}
-               for sp, n in sorted(broad.items())],
-              ["species", "pan_size", "n_broad_clusters"])
-    ts = taxon_summary(rows, lineage, [r for r in args.ranks.split(",") if r])
+    a_codes, c_codes, asm_names, n_clusters = load_pairs(args.incidence_matrix)
+    groups, _, _ = group_species(asm_names, load_species(args.samples_csv),
+                                 load_exclude(args.exclude_asmids), 1, True)
+    bad = [(s, n_expected[s], len(groups.get(s, []))) for s in sp_names
+           if len(groups.get(s, [])) != n_expected[s]]
+    if bad:
+        sys.exit("species genome counts differ from the species table (different "
+                 f"--exclude-asmids or inputs?): {bad[:5]} (species, table, here)")
+
+    sp_of_asm = np.full(len(asm_names), -1, dtype=np.int32)
+    for i, s in enumerate(sp_names):
+        sp_of_asm[groups[s]] = i
+    s_pair = sp_of_asm[a_codes]
+    keep = s_pair >= 0
+    ones = np.ones(int(keep.sum()), dtype=np.int32)
+    S = sp.coo_matrix((ones, (s_pair[keep], c_codes[keep])), shape=(len(sp_names), n_clusters)).tocsr()
+    S.sum_duplicates()
+    S.data[:] = 1                                   # presence/absence per species
+    n_species_per_cluster = np.asarray(S.sum(axis=0)).ravel()
+    narrow_cols = np.flatnonzero((n_species_per_cluster >= 1) & (n_species_per_cluster <= args.max_species_per_cluster))
+    Sn = S[:, narrow_cols].tocsr()
+    pan = np.asarray(S.sum(axis=1)).ravel()
+    pan_n = np.asarray(Sn.sum(axis=1)).ravel()
+    ST, SnT = S.T.tocsr(), Sn.T.tocsr()
+
+    lineage, conflicts = load_lineage(args.samples_csv)
+    write_tsv(f"{args.outdir}/lineage_conflicts.tsv", conflicts, ["species", "rank", "labels"])
+    if conflicts:
+        print(f"WARNING: {len(conflicts)} species/rank lineage conflicts (see lineage_conflicts.tsv)", file=sys.stderr)
+
+    fields = ["species_a", "species_b", "shared_clusters", "jaccard", "shared_clusters_narrow",
+              "jaccard_narrow", "same_genus", "same_family"]
+    n_pairs = 0
+    with open(f"{args.outdir}/species_cluster_sharing.tsv", "w", newline="") as fh:
+        w = csv.writer(fh, delimiter="\t")
+        w.writerow(fields)
+        for i0 in range(0, len(sp_names), args.block):
+            i1 = min(i0 + args.block, len(sp_names))
+            B = (S[i0:i1] @ ST).tocoo()
+            Bn = (Sn[i0:i1] @ SnT).tocsr()
+            m = B.col > (B.row + i0)                 # upper triangle only
+            r, c, v = B.row[m] + i0, B.col[m], B.data[m]
+            vn = np.asarray(Bn[r - i0, c]).ravel()
+            for ri, ci, sh, shn in zip(r, c, v, vn):
+                a, b = sp_names[ri], sp_names[ci]
+                la, lb = lineage[a], lineage[b]
+                w.writerow([a, b, int(sh), f"{sh / (pan[ri] + pan[ci] - sh):.6g}", int(shn),
+                            f"{(shn / (pan_n[ri] + pan_n[ci] - shn)) if (pan_n[ri] + pan_n[ci] - shn) else 0:.6g}",
+                            int(bool(la['GENUS']) and la['GENUS'] == lb['GENUS']),
+                            int(bool(la['FAMILY']) and la['FAMILY'] == lb['FAMILY'])])
+                n_pairs += 1
+    ts = taxon_summary(rows, lineage, [x for x in args.ranks.split(",") if x])
     write_tsv(f"{args.outdir}/taxon_pangenome_summary.tsv", ts,
-              ["rank", "taxon", "n_species", "median_alpha", "frac_species_open_alpha_lt_1",
-               "median_core_fraction", "median_rarefied_pan_size"])
-    print(f"species: {len(sets)}; pairs sharing >=1 cluster: {len(pair_rows)}; "
-          f"taxon rows: {len(ts)}")
+              ["rank", "taxon", "n_species", "n_open", "n_closed", "n_unresolved", "frac_open",
+               "median_alpha", "median_core_per_mean_genome", "median_rarefied_pan_size",
+               "median_rarefied_core"])
+    print(f"species: {len(sp_names)}; pairs sharing >=1 cluster: {n_pairs}; taxon rows: {len(ts)}",
+          file=sys.stderr)
 
 
 if __name__ == "__main__":
