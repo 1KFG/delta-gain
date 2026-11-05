@@ -74,7 +74,11 @@ include { SETUP_PYTHON_PIP_CACHE }         from './modules/setup/SETUP_PYTHON_PI
 
 workflow {
     // Small connectivity/content smoke test (REST) -- cheap, safe at any scale.
-    FETCH_UNIPROT_FUNGI(Channel.of('reviewed'))
+    // params.run_uniprot_smoke_test (default true): a REST 429 from UniProt
+    // here fails the whole run under errorStrategy 'finish' (2026-11-04).
+    if (params.run_uniprot_smoke_test) {
+        FETCH_UNIPROT_FUNGI(Channel.of('reviewed'))
+    }
 
     // Step 2: the real comprehensive UniProt-fungi reference set. Reuse the
     // already-built real result by default (see header comment) rather than
