@@ -49,9 +49,9 @@ Prior-annotation status of the 27,401 assemblies (`DeltaGain_Fungi/prior_annotat
 
 | Status | Assemblies | Role |
 |---|---:|---|
-| annotated, protein file on disk (`baseline_ok`) | 5,511 | **baseline** |
-| annotated, folder present, protein file missing | 158 | being fetched (job `fetch_gap`) → baseline |
-| annotated, never downloaded | 1,228 | 44 fetched; 1,184 are same-strain duplicates dropped by the project's dedup (1,118 already have an annotated sibling in the baseline) |
+| annotated, protein file on disk (`baseline_ok`) | **5,703** | **baseline** (after gap download 2026-11-05; was 5,511) |
+| annotated, folder present, protein file missing | 10 | NCBI lists an annotation but ships no protein file; excluded from both sets |
+| annotated, never downloaded | 1,184 | same-strain duplicates dropped by the project's dedup (1,118 already have an annotated sibling in the baseline; 57 strains flagged) |
 | no prior annotation, downloaded | 18,145 | **new** |
 | no prior annotation, not downloaded | 2,359 | not in our set |
 
@@ -205,12 +205,12 @@ The project succeeds if each of these holds:
   (Aplakidou et al., NAR 2026): their funnel is Pfam/AntiFam filter → fast LAST → DIAMOND on the remainder →
   linclust 30 %/80 % families (≥ 25 members) → AlphaFold + Foldseek. Decision: **stop the universal search**
   (~15 % done; 5 days to the shutdown; mostly re-confirming known strong hits) and rebuild around an explicit baseline.
-- 2026-11-05: prior-annotation status built for 27,401 assemblies; gap download (1,386 accessions) submitted;
-  funnel scripts written and smoke-tested.
-- In progress: **2a** compress old raw hits; **2b** self-hit / best-class re-bin on the 2000-genome hits; **2c** delete
-  the two `work/` directories after verification.
-- Next: finish gap download → refresh status → launch the full funnel → fill §3 with measured counts →
-  write the survivor stage → Pfam family walk.
+- 2026-11-05: prior-annotation status built for 27,401 assemblies; gap download done (192 of 202 accessions got
+  proteins; 10 have none); baseline now 5,703 genomes. Funnel scripts written and smoke-tested.
+- 2026-11-05: raw hits compressed and verified, 2000-genome re-bin and self-hit check done, both `work/`
+  directories deleted.
+- Next: launch the full funnel (`sbatch launch/delta_funnel.sbatch`, epyc/intel only) → fill §3 with measured
+  protein counts → write the survivor stage → Pfam family walk.
 
 ## 12. What the old design showed and why it changed
 
