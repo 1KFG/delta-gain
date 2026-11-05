@@ -176,23 +176,28 @@ workflow {
     // Comparison-only branch (2026-09-08): dereplicate the same combined
     // BFD protein set a second way, then compare -- not fed into
     // SPLIT_FASTA/search/binning above.
-    DIAMOND_CLUSTER(COMBINE_BFD_PROTEINS.out.fasta.map { fasta -> tuple('bfd_proteins', fasta) })
-    EXTRACT_CLUSTER_REPS(DIAMOND_CLUSTER.out.clusters_and_fasta)
+    // params.run_diamond_cluster (default true) lets very large runs skip it.
+    if (params.run_diamond_cluster) {
+        DIAMOND_CLUSTER(COMBINE_BFD_PROTEINS.out.fasta.map { fasta -> tuple('bfd_proteins', fasta) })
+        EXTRACT_CLUSTER_REPS(DIAMOND_CLUSTER.out.clusters_and_fasta)
 
-    COMPARE_CLUSTERINGS(
-        MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
-        EXTRACT_CLUSTER_REPS.out.cluster_membership.map { prefix, tsv -> tsv },
-    )
+        COMPARE_CLUSTERINGS(
+            MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, tsv -> tsv },
+            EXTRACT_CLUSTER_REPS.out.cluster_membership.map { prefix, tsv -> tsv },
+        )
+    }
 
     // Published copies of the large BFD-side text outputs are zstd-compressed.
     // Producers no longer publish the plain files (see their saveAs/publishDir
     // comments); downstream processes still read the plain files from work/.
-    COMPRESS_ZSTD(
-        COMBINE_BFD_PROTEINS.out.fasta
-            .mix(COMBINE_BFD_PROTEINS.out.provenance)
-            .mix(MMSEQS_LINCLUST_BFD.out.representatives.map { prefix, f -> f })
-            .mix(MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, f -> f })
+    compress_ch = COMBINE_BFD_PROTEINS.out.fasta
+        .mix(COMBINE_BFD_PROTEINS.out.provenance)
+        .mix(MMSEQS_LINCLUST_BFD.out.representatives.map { prefix, f -> f })
+        .mix(MMSEQS_LINCLUST_BFD.out.cluster_membership.map { prefix, f -> f })
+    if (params.run_diamond_cluster) {
+        compress_ch = compress_ch
             .mix(EXTRACT_CLUSTER_REPS.out.representatives.map { prefix, f -> f })
             .mix(EXTRACT_CLUSTER_REPS.out.cluster_membership.map { prefix, f -> f })
-    )
+    }
+    COMPRESS_ZSTD(compress_ch)
 }
