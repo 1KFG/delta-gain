@@ -144,7 +144,7 @@ Run in this order so each stage can fail cheaply.
 
 | Step | Family | Why | Expected size |
 |---|---|---|---|
-| **P0 (control, −)** | Proteasome `PF00246`-type conserved family (or a ribosomal/BUSCO-linked Pfam) | calibrates the null: strain variation will show "novelty" here too, so the pass criterion is meaningful only after species collapse | PF00246: 75,253 proteins |
+| **P0 (control, −)** | **Proteasome `PF00227`** (F0: 5,534 base / 17,789 new genomes, ~14 copies/genome) and **Tubulin `PF00091`** (4.6 copies; species-level q = 1). *(The review named `PF00246` as the proteasome — that is Peptidase_M14, i.e. P3's contrast family.)* | calibrates the null: strain variation will show "novelty" here too, so the pass criterion is meaningful only after species collapse | PF00227 ≈ 10⁵ proteins |
 | **P1 (CAZy)** | **GH18** (`GH18` dbCAN, strip subfamily suffix, + `PF00704`) | large, diverse; cross-checks CAZy vs Pfam views of one family | GH18 253,602; PF00704 266,000 |
 | **P2 (CAZy, +)** | **AA9** (LPMO; `PF03443`) | known diversified/expanded family; positive control | AA9 192,879; PF03443 197,003 (~20× the first estimate) |
 | **P3 (MEROPS)** | **S8** subtilisin-like (and **M14** as a contrast) | MEROPS BLAST-hit path; S8 varies with lifestyle | S8 265,246; M14 57,804 |
@@ -216,7 +216,7 @@ HPC rule: **never abu_dhabi nodes** (no AVX2; DuckDB/MMseqs die with "Illegal in
 |---|---|---|
 | 2026-11-06 | Plan drafted; table schemas verified (§3) | — |
 | 2026-11-06 | Independent (Fable) review + HPCC verification | Corrected: Pfam GA-gated (R6 closed), MEROPS family map exists (R3 closed), CAZy family unit/`diamond_fam`/thresholds, baseline n ≈ 5,537, pilot sizes, nulls redesigned for 60 % same-species new genomes, FDR + preregistration, Day 1–3 priorities |
-| | F0 census | not started |
+| 2026-11-06 | **F0 census done** (`bin/family_census.py`, job 31779947, 1m29s) | 5,549 baseline / 17,864 new genomes; species with baseline 2,755, with new 5,454, **new-taxon species 4,632 (85 % of new species)** — while 60 % of new *genomes* are strains of known species (a few species hold very many genomes). Families: 16,053 Pfam, 6,799 CAZy (family/subfamily/e-family), 412 MEROPS. "New-only" (≥3 new, 0 baseline genomes): 1,597 Pfam, 17 CAZy families, 299 e-families, 16 MEROPS families. **Species-level q < 0.05 for 5,721 Pfam families** — most have tiny effect sizes (e.g. proteasome, ribosomal: log2 ratio ≈ −0.01 but q ≈ 10⁻³) so significance alone is uninformative; use effect size + the F3 nulls. GH18: genome-level p = 7e-10 but species-level q = 0.07 (illustrates the strain effect) |
 | | P0 control | not started |
 | | P1 GH18 | not started |
 
