@@ -55,13 +55,13 @@ Prior-annotation status of the 27,401 assemblies (`DeltaGain_Fungi/prior_annotat
 | no prior annotation, downloaded | 18,145 | **new** |
 | no prior annotation, not downloaded | 2,359 | not in our set |
 
-Protein counts (all **[E]** until the funnel input is built; per-genome averages from a 40+40 genome smoke test):
+Protein counts: **measured** by the full funnel input build of 2026-11-06 [M] (the earlier estimates were 55M / 135-195M):
 
 | Set | Genomes | Proteins/genome | Proteins |
 |---|---:|---:|---:|
-| Baseline (NCBI proteins) | ~5.7k | ~9.6k [M, 40 genomes] | ~55M [E] |
-| Query (BFD, new genomes) | ~18.1k | 7.5k–10.7k [E] | ~135–195M [E] |
-| Funnel input (both) | ~23.8k | | ~190–250M [E] |
+| Baseline (NCBI proteins) | 5,703 | ~11.2k | **63,766,960** [M] |
+| Query (BFD, new genomes) | 17,864 | ~10.2k | **183,095,650** [M] |
+| Funnel input (both) | 23,567 | | **246,862,610** [M] (17,715 sequences < 30 aa dropped; 0 duplicate ids; 0 missing files) |
 | After tier-0 linclust 95/90 | | | ~85–110M [E; pilot 2.0×, full run 2.25× reduction] |
 
 Reference points already measured:
@@ -192,7 +192,7 @@ The project succeeds if each of these holds:
 
 | Step | Resources | Status |
 |---|---|---|
-| Funnel (3 linclust tiers on ~190-250M proteins) | 64 cpu, 400 GB, ≤ 2 d; reference: full BFD linclust 1h25m / 224 GB [M] | smoke test passed (80 genomes, 2m13s) [M]; full run pending baseline download |
+| Funnel (3 linclust tiers on ~190-250M proteins) | 64 cpu, 400 GB, ≤ 2 d; reference: full BFD linclust 1h25m / 224 GB [M] | smoke test passed (80 genomes, 2m13s) [M]; **full run done 2026-11-06: job 31780270, 1h47m, 64 cpu** [M] |
 | Pfam family walk | duckdb + mmseqs on a subset | not started |
 | Survivor search | TBD from survivor count | not written |
 | Structure prediction | TBD; only on a small family subset | not planned in detail |
@@ -209,8 +209,23 @@ The project succeeds if each of these holds:
   proteins; 10 have none); baseline now 5,703 genomes. Funnel scripts written and smoke-tested.
 - 2026-11-05: raw hits compressed and verified, 2000-genome re-bin and self-hit check done, both `work/`
   directories deleted.
-- Next: launch the full funnel (`sbatch launch/delta_funnel.sbatch`, epyc/intel only) → fill §3 with measured
-  protein counts → write the survivor stage → Pfam family walk.
+- 2026-11-06: **first funnel run crashed in the summary stage** ("CSV Error ... Expected 3 columns, found 1"). Root cause was
+  not quoting: 44 baseline folder names carried a trailing carriage return (the gap-download list was read from a CRLF CSV).
+  MMseqs treats `\r` as whitespace and DuckDB as a newline, so those ids split. Fixed by stripping CR in the status table and
+  writer, `build_funnel_input.py` and the summary parser, and renaming 44 directories / 220 files on disk. Rerun (31780270)
+  gave base_genomes 5,703, base_missing_file 0.
+- 2026-11-06: **funnel result [M]** (183,095,650 new proteins; "novel" = tier cluster has no baseline member):
+
+  | Tier | Novel proteins | Fraction |
+  |---|---:|---:|
+  | 95 % id / 90 % cov | 91,857,334 | 50.2 % |
+  | 70 % | 53,498,892 | 29.2 % |
+  | 50 % | 41,042,274 | 22.4 % |
+
+  Per genome (17,864; `summary/genome_tier.tsv`) the spread is wide: median fraction novel 35.6 % / 14.1 % / 10.2 % at
+  95 / 70 / 50 %, 90th percentile 99.5 % / 82.1 % / 62.0 % (new-taxon genomes vs strains of baseline species).
+  Nested clusters from stage 4: `summary/survivors_clusters.tsv` (1.0 GB).
+- Next: survivor stage (profile search of 50 % novel clusters vs baseline), join family labels (F6), Pfam family walk.
 
 ## 12. What the old design showed and why it changed
 
