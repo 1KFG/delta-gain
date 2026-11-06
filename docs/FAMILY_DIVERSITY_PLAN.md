@@ -35,16 +35,20 @@ were computed on the BFD proteins of all 23.7 k genomes. Baseline vs new is defi
 
 ## 3. Inputs (all on HPCC, `/bigdata/stajichlab/shared/projects/BFD/`)
 
-Tables in `Fungi_BFD_runs/tables/` (rebuilt 2026-11-05/06; the consolidated `db/BFD.duckdb` is being rebuilt – **re-verify names/counts when it lands**):
+Tables in `Fungi_BFD_runs/tables/` (parquet files dated 2026-11-05 21:41 … 11-06 09:09; **use the parquet files — `db/BFD.duckdb` is a stale Sep-9 82 MB file**). Row counts verified by review 2026-11-06:
 
 | Table | Rows | Key columns | Notes |
 |---|---:|---|---|
-| `pfam.parquet` (20 GB) | 368,209,721 | `protein_id, pfam_id, pfam_acc, domain_i_evalue, domain_score, hmm_from/to, ali_from/to, domain_num(_of)` | **verify** the run used `--cut_tc`; if not, apply per-family TC from Pfam-A.hmm.dat |
-| `cazy.cazymes_hmm.parquet` | 9,164,068 | `species_prefix, HMM_id, protein_id, evalue, coverage, s_start/s_end` | dbCAN HMM family (e.g. `GH27`) |
-| `cazy.overview.parquet` | 9,310,657 | `protein_id, EC, cazyme_fam, sub_fam, diamond_fam, substrate, toolcount` | `sub_fam` = dbCAN-sub e-family (e.g. `GH27_e9`); `toolcount` = tool consensus |
-| `merops.parquet` | 43,462,876 | `protein_id, merops_id, percent_identity, aln_length, q_start/q_end, evalue, bitscore` | BLAST vs MEROPS library; **needs MER-id → family/clan map** (§8, risk R3) |
-| `species.parquet` | 23,680 | `ASMID, LOCUSTAG, PHYLUM…SPECIES, NCBI_TAXONID` | `protein_id` prefix = `LOCUSTAG` |
-| `asm_stats`, `busco_genome` | 23,693 | assembly + BUSCO | covariates for confounder control |
+| `pfam.parquet` (20 GB) | 368,209,721 | `protein_id, pfam_id, pfam_acc, domain_i_evalue, domain_score, hmm_from/to, ali_from/to, env_from/to, domain_num(_of)` | Pfam 38.2, `hmmsearch --cut_ga` (verified; 0 rows below GA). **Do not add an extra e-value cut** (drops 8.4 % of GA-passing hits) |
+| `cazy.cazymes_hmm.parquet` | 9,164,068 | `species_prefix, HMM_id, protein_id, evalue, coverage, s_start/s_end` | dbcanlight HMM; filters (E ≤ 1e-15, cov ≥ 0.35) already applied. **Family = `HMM_id` with `_N` subfamily suffix stripped** (`GH5_7` → `GH5`) |
+| `cazy.overview.parquet` | 9,310,657 | `protein_id, EC, cazyme_fam, sub_fam, diamond_fam, substrate, toolcount` | `diamond_fam` is `-` in all rows (no DIAMOND run); `toolcount` ∈ {1,2} = HMM ± dbCAN-sub agreement |
+| `merops.parquet` | 43,462,876 | `protein_id, merops_id, percent_identity, aln_length, q_start/q_end, evalue, bitscore` | BLASTP vs `merops_scan.lib` release 124, `-evalue 1e-10 -max_target_seqs 10 -seg yes` (~6.4 hits/protein → choose best hit per protein per family). Family map: `/srv/projects/db/MEROPS/2023-01/merops_lib.families.tab` (all 3,664 MER ids map) |
+| `species.parquet` | 23,680 | `ASMID, LOCUSTAG, PHYLUM…SPECIES, NCBI_TAXONID` | `protein_id` prefix = `LOCUSTAG` (join ≈ 100 %; CAZy has 17–22 unmatched rows from prefix `F0B62757`) |
+| `asm_stats`, `busco_genome` | 23,584 / 23,582 | assembly + BUSCO | covariates for confounder control |
+
+**Usable genome counts for this analysis** (genomes with BFD proteins): baseline ≈ **5,537** (not 5,703 — that is `baseline_ok` over all NCBI assemblies; `genome_classes.tsv` has 5,584 baseline rows, 5,549 matched); new ≈ **17,838** with Pfam rows. Genomes in classes `annotated_pending` (10), `not_in_ncbi_table` (24) and `new/not_annotated` (11 with CAZy rows) must be excluded explicitly. Ratio new:baseline ≈ 3.2×.
+
+**Taxonomic structure of the new set (review finding):** 10,673 of 17,864 new genomes (60 %) belong to species that already have a baseline genome (e.g. *S. cerevisiae* 149 base / 1,148 new; *C. auris* 21 / 930; *F. oxysporum* 61 / 750); only 64 new genomes lie in the 23 orders with no baseline genome; 57 orders have baseline but no new genomes.
 | `swissprot_annot.parquet` | 575,503 | `accession, ec_numbers, pfam, go_terms` | characterised-protein anchors |
 
 Other: `DeltaGain_Fungi/results/delta_funnel/genome_classes.tsv` (baseline/new), funnel tier clusters (63.8 M BASE + 183.1 M NEW input proteins), BFD protein FASTAs (`combine_bfd_proteins.py`).
@@ -110,19 +114,22 @@ family hit table.protein_id ──prefix──► species.LOCUSTAG ──► spe
 | | Pfam | CAZy (dbCAN) | MEROPS |
 |---|---|---|---|
 | Family unit | `pfam_acc` | `HMM_id` family; refine to `sub_fam` (e-family) and `substrate`/`EC` | MEROPS family (S8, M14 …) and clan, from MER id |
-| Member filter | `domain_i_evalue ≤ 1e-5` **and** score ≥ TC (verify) ; drop AntiFam-like hits if present | `evalue ≤ 1e-15` and `coverage ≥ 0.35` (dbCAN default) **and** `toolcount ≥ 2` for the strict set | best hit `evalue ≤ 1e-5`, `aln_length ≥ 50 % of subject` |
-| Region | `ali_from..ali_to` | `s_start..s_end` | `q_start..q_end` |
-| Divergence signal | `domain_score` / TC | HMM `coverage`, `diamond_fam` vs HMM disagreement | `percent_identity` of best MEROPS hit (low = distant) |
+| Member filter | **GA-gated already; no extra cut.** Optional sensitivity: model coverage ≥ 50 % and ≥ 80 % | already filtered (E ≤ 1e-15, cov ≥ 0.35); strict set = `toolcount = 2` (HMM and dbCAN-sub agree) | best hit per protein **per family**; 22 k proteins hit > 1 family; `aln_length ≥ 50 % of subject` needs subject lengths from `merops_scan.lib` (add) |
+| Region | `env_from..env_to` (one region per domain instance; repeats kept separate, report merged-envelope sensitivity) | `s_start..s_end` | `q_start..q_end` |
+| Divergence signal | `domain_score` relative to the family GA | HMM `coverage`; sub-family assignment vs family-only | `percent_identity` of best MEROPS hit (low = distant) |
 | Extra | architecture string from `domain_num` ordering | substrate / EC diversity per subfamily | catalytic-triad / active-site motif per family |
 
 ## 5. Metrics and null models
 
-Raw "new genomes contain X more clusters" is **meaningless on its own**: there are 3.1× more new genomes than baseline
-genomes, and they are taxonomically skewed. Every claim must be against a null.
+Raw "new genomes contain X more clusters" is **meaningless on its own**: there are ~3.2× more new genomes than baseline
+genomes, they are taxonomically skewed, and **60 % of them are additional strains of species already in the baseline** — so at the 90/70 % tiers
+much "novelty" is strain/population variation or paralog splitting, not new biology. Every claim must be against a null, and
+**every metric is reported at three dereplication levels: all genomes, one genome per species (headline), one per genus; and split into
+"new taxon" (species/genus absent from baseline) vs "within known species".**
 
-1. **Prevalence delta** – families present in ≥ *k* new genomes and ≤ *j* baseline (k=3, j=0 as "new-only families").
-2. **Rarefied cluster richness** – for tier *t*, sample *n* = 5,703 genomes from the new set (1,000 draws, taxon-stratified to mirror the baseline's order-level composition); compare cluster count with the baseline's. Report ratio and 95 % interval.
-3. **Leave-one-out null (baseline vs baseline)** – hold out a random baseline genome (or clade); how many *new-only clusters* does it add to the remaining baseline? New genomes are interesting only if they exceed this distribution. This is the key control for "any extra genome adds something".
+1. **Prevalence delta** – families present in ≥ *k* new genomes and ≤ *j* baseline (k=3, j=0 as "new-only families"); FDR-controlled across families (Benjamini–Hochberg in F0).
+2. **Rarefied cluster richness** – rarefy baseline and new to the **same n within the orders they share** (a 5,703-genome order-matched draw from new is impossible: Σ min(base,new) over orders is only 4,873); use species-collapsed accumulation curves for baseline alone vs baseline+new. Report ratio and 95 % interval.
+3. **Leave-k-out null (baseline vs baseline)** – hold out *k* baseline genomes taxon-matched to a random *k*-subset of new genomes, compare their novelty against the remaining baseline at equal *k* (a single-genome leave-one-out does not model adding thousands of genomes). Run species-collapsed. New genomes are interesting only if they exceed this distribution.
 4. **Per-genome marginal gain** – order genomes randomly; accumulate; fit saturation curve (re-use `accumulation_curve.py` / `lib_accumulation.py`); baseline curve vs baseline+new.
 5. **Phylogenetic diversity added** – Faith PD (sum of branch length) contributed by new members on the family tree vs the same for the size-matched null; plus fraction of **new-only clades** (≥ 3 new members, no baseline member).
 6. **Distant-member fraction** – share of new members whose score lies in the lowest decile of the baseline score distribution (Pfam/CAZy) or whose best-MEROPS identity < 40 %.
@@ -137,14 +144,14 @@ Run in this order so each stage can fail cheaply.
 
 | Step | Family | Why | Expected size |
 |---|---|---|---|
-| **P0 (control, −)** | A conserved housekeeping family (e.g. a BUSCO-linked Pfam such as a ribosomal or proteasome subunit) | delta ≈ 0 expected; validates the null and the pipeline | ~1 copy/genome |
-| **P1 (CAZy)** | **GH18** (chitinases; `GH18` dbCAN + `PF00704`) | large, diverse, ecologically interesting (mycoparasites, insect pathogens), cross-checks CAZy vs Pfam views of one family | 10⁴–10⁵ members |
-| **P2 (CAZy, +)** | **AA9** (LPMO) | known diversified/expanded family; positive control | 10⁴ |
-| **P3 (MEROPS)** | **S8** subtilisin-like (and **M14** as a contrast) | MEROPS query-based path; S8 is large and varies with lifestyle | 10⁵ |
-| **P4 (Pfam, +)** | Zn(II)₂Cys₆ `PF00172` or cytochrome P450 `PF00067` | very large lineage-specific families; stress test for scale | 10⁵–10⁶ |
+| **P0 (control, −)** | Proteasome `PF00246`-type conserved family (or a ribosomal/BUSCO-linked Pfam) | calibrates the null: strain variation will show "novelty" here too, so the pass criterion is meaningful only after species collapse | PF00246: 75,253 proteins |
+| **P1 (CAZy)** | **GH18** (`GH18` dbCAN, strip subfamily suffix, + `PF00704`) | large, diverse; cross-checks CAZy vs Pfam views of one family | GH18 253,602; PF00704 266,000 |
+| **P2 (CAZy, +)** | **AA9** (LPMO; `PF03443`) | known diversified/expanded family; positive control | AA9 192,879; PF03443 197,003 (~20× the first estimate) |
+| **P3 (MEROPS)** | **S8** subtilisin-like (and **M14** as a contrast) | MEROPS BLAST-hit path; S8 varies with lifestyle | S8 265,246; M14 57,804 |
+| **P4 (Pfam, +)** — **deferred until after shutdown** | `PF00172` (3.21 M proteins), `PF00067` (2.02 M) | exceed the 2 M linclust trigger; stress tests only | 10⁶ |
 | **P5 (Pfam, dark)** | A set of **DUF** families concentrated in new genomes (from F0) | links to "dark proteome" / structure goal | varies |
 
-A family qualifies as a pilot only after F0 gives its size; if > 2 M regions, cluster at 90 % first (linclust) and carry reps forward.
+A family qualifies as a pilot only after F0 gives its size; if > 2 M regions, cluster at 90 % first (linclust) and carry reps forward. **Preregister the pilot list** (above) before looking at F0 results to avoid selecting on the outcome.
 
 ## 7. Measures of success
 
@@ -164,10 +171,14 @@ A **negative** result (new genomes add little beyond the null) is a valid outcom
 |---|---|---|
 | R1 | New genomes dominate counts (3.1×) | rarefaction + leave-one-out null (§5) |
 | R2 | Taxonomic skew (new = environmental / under-sampled lineages) | taxon-stratified sampling; report per-order tables; treat "novelty from new taxa" as an *expected* source, separate from "within-taxon" novelty |
-| R3 | **MEROPS family map missing** (table has `MER#` ids only) | obtain MEROPS `domain.txt`/`pepunit.lib` family assignment (MEROPS FTP) and load as `merops_family` table; **blocker for P3** |
+| R3 | ~~MEROPS family map missing~~ **Closed**: `/srv/projects/db/MEROPS/2023-01/merops_lib.families.tab` maps all 3,664 MER ids (5,097 rows; headers also carry `#S01A#`) | join on `merops_id`; best hit per protein per family |
+| R10 | **60 % of new genomes are additional strains of baseline species** → 90/70 % tiers measure population variation | species/genus dereplication as headline; "new taxon" vs "within known species" split (§5) |
+| R11 | Baseline genome count differs by table (5,703 vs 5,537 usable) | always compute n from the join, never hard-code |
+| R12 | Multiple testing across ~16 k Pfam + CAZy + MEROPS families | BH-FDR in F0; preregistered pilot list |
+| R13 | Gene-model quality may differ between baseline and new (e.g. RNA-seq availability) | covariate check; stratify by BUSCO/assembly stats |
 | R4 | Fragmented/partial genes inflate "distinct" sequence | require ≥ 80 % of model length; drop `gene model partial` flags; compare with and without |
 | R5 | Contamination / HGT-like bacterial proteins | taxonomy filter via best DIAMOND/`taxonomy` columns; inspect new-only clades manually |
-| R6 | Pfam run not TC-gated | verify; re-threshold with `pfam_len` + per-family TC table before F0 |
+| R6 | ~~Pfam run not TC-gated~~ **Closed**: Pfam 38.2 `hmmsearch --cut_ga` (`Fungi_BFD/nextflow/modules/BFD/PFAM/main.nf`); 0 rows below GA | no extra filtering |
 | R7 | Multi-copy families → paralog inflation | report per-genome copy number; cluster-level counts use distinct genomes as well as members |
 | R8 | Assembly quality heterogeneity | covariates from `busco_genome`, `asm_stats`; stratify by BUSCO completeness |
 | R9 | ID mapping between BFD ids and funnel ids (`NEW__<ASMID>__<orig>`) | check on 1 genome before F6 |
@@ -186,7 +197,16 @@ or the BFD proteomes has to run before then, or the inputs must be copied out fi
 | F4 trees | MAFFT+FastTree on ≤ 20 k reps, hours | after export OK |
 | F5–F7 | small / structure prediction elsewhere | no |
 
-**Priority before shutdown (in order):** (1) F0 for Pfam + CAZy + MEROPS; (2) F1 FASTA export of regions for P0, P1, P2, P3 (and P4 if time); (3) copy `genome_classes.tsv`, `species.parquet`, the F0 outputs and the region FASTAs to storage that survives the shutdown.
+**Priority before shutdown (revised after review):**
+
+| Day | Work |
+|---|---|
+| Day 1 (Nov 6–7) | F0 as one DuckDB pass over the parquet files (GA-gated Pfam; CAZy with subfamily suffix stripped; MEROPS via `families.tab`), output per-family genome counts per class **and per species-collapsed set** plus copy number; export immediately |
+| Day 2 | **One** extraction job that reads the 23 k per-genome BFD protein files once (`Fungi_BFD_runs/input/pep/<tag>.proteins.fa.gz`; ~1–2 h I/O) and writes regions + membership TSVs for P0–P3 and the top F0 DUFs. **Do not reuse `funnel_input.faa`** — its baseline sequences are NCBI proteins, not BFD. Copy regions, memberships, `species`, `genome_classes`, `asm_stats`, `busco_genome`, `merops_lib.families.tab` off-cluster |
+| Day 3 | MMseqs2 tiers on pilot families (minutes each); optionally extract regions for the top 50–100 F0 families as an archive |
+| Also export | funnel `tier_*_clusters.tsv` + provenance (without them F6 cannot be done later; check the BASE-id (NCBI) → family-table mapping first) |
+
+**After the shutdown:** nulls/rarefaction, trees and Faith PD (not feasible at 2×10⁵ members before Nov 10; PD on a FastTree of 50 % reps is fragile anyway), F5–F7, funnel join (F6). **Cut before shutdown:** P4, tree building, Faith PD. Disk: /bigdata 94 % full, 19 TB free.
 
 HPC rule: **never abu_dhabi nodes** (no AVX2; DuckDB/MMseqs die with "Illegal instruction"). Use `-p highclock` or `-p epyc,intel` with `--constraint="ryzen|broadwell|cascade|sapphire"`. `highmem` h01–h06 are Ivy Bridge (no AVX2) as well.
 
@@ -195,6 +215,7 @@ HPC rule: **never abu_dhabi nodes** (no AVX2; DuckDB/MMseqs die with "Illegal in
 | Date | Stage | Result |
 |---|---|---|
 | 2026-11-06 | Plan drafted; table schemas verified (§3) | — |
+| 2026-11-06 | Independent (Fable) review + HPCC verification | Corrected: Pfam GA-gated (R6 closed), MEROPS family map exists (R3 closed), CAZy family unit/`diamond_fam`/thresholds, baseline n ≈ 5,537, pilot sizes, nulls redesigned for 60 % same-species new genomes, FDR + preregistration, Day 1–3 priorities |
 | | F0 census | not started |
 | | P0 control | not started |
 | | P1 GH18 | not started |
