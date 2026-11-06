@@ -53,12 +53,12 @@ def main(argv=None):
             for r in csv.DictReader(fh, delimiter="\t"):
                 if r["status"] != "baseline_ok" or r["protein_file_ok"] != "1":
                     continue
-                p = os.path.join(a.asm_dir, r["folder"], r["folder"] + "_protein.faa.gz")
+                p = os.path.join(a.asm_dir, r["folder"].strip(), r["folder"].strip() + "_protein.faa.gz")
                 if not os.path.exists(p):
                     stats["base_missing_file"] += 1
                     continue
                 stats["base_genomes"] += 1
-                emit(fa, prov, "BASE", r["folder"], p, a.min_len, stats)
+                emit(fa, prov, "BASE", r["folder"].strip(), p, a.min_len, stats)
         with open(a.new_manifest, newline="") as fh:
             for r in csv.DictReader(fh, delimiter="\t"):
                 if r["status"] != "matched":

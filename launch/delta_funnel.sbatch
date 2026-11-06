@@ -17,8 +17,8 @@
 #SBATCH -J delta_funnel
 # Hardware: NEVER run on abu_dhabi nodes (all of `batch`, plus c02/c21 etc. in short/preempt/stajichlab).
 # They lack AVX2 -> MMseqs2/DuckDB die with "Illegal instruction". epyc = Milan, intel = Broadwell; both modern.
-# The constraint also excludes `highmem` Ivy Bridge nodes if a partition list is ever widened.
-#SBATCH -p epyc,intel
+# stajichlab also holds abu_dhabi nodes (c02,c21), so the --constraint below is REQUIRED. Alternatives with AVX2: -p highclock (Xeon Gold, no constraint), -p epyc,intel.
+#SBATCH -p stajichlab
 #SBATCH --constraint=ryzen|broadwell|cascade|sapphire
 #SBATCH -c 64
 #SBATCH --mem=400G

@@ -42,10 +42,10 @@ def main(argv=None):
         c.execute(f"PRAGMA temp_directory='{a.tmp_dir}'")
 
     c.execute(f"""create table prov as select id, class cls, genome from
-        read_csv('{a.prov}', delim='\t', header=true, columns={{'id':'VARCHAR','class':'VARCHAR','genome':'VARCHAR'}})""")
+        read_csv('{a.prov}', delim='\t', quote='', escape='', strict_mode=false, header=true, columns={{'id':'VARCHAR','class':'VARCHAR','genome':'VARCHAR'}})""")
 
     def read_tier(path):
-        return (f"read_csv('{path}', delim='\t', header=false, "
+        return (f"read_csv('{path}', delim='\t', quote='', escape='', strict_mode=false, header=false, "
                 f"columns={{'rep':'VARCHAR','member':'VARCHAR'}})")
 
     # tier 0: known flag per rep from BASE members; np = NEW proteins -> current rep
