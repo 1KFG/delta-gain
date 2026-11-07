@@ -253,7 +253,15 @@ The project succeeds if each of these holds:
   **no hit 18.1 %**. So most large survivor clusters are detectable homologs of baseline-known clusters that merely fail the 50 % / 80 %
   coverage rule; roughly one cluster in six has no baseline homolog even by sensitive search. The test took 3.5 min on 32 CPUs;
   the full 1.25 M-query run (job 31828362) is queued. Test queries are the largest clusters, so the full-set split may differ.
-- Next: full survivor search, contamination/TE triage (E5), orphan vs taxon-restricted (E6), Pfam family walk.
+- 2026-11-07: **taxonomic breadth of survivor clusters (E6) [M]** (`bin/survivor_taxa.py`, `results/survivor_taxa/`; survivors expanded through the
+  nested tiers to their NEW proteins; 17,095,910 clusters / 41,042,274 proteins recovered exactly). **82 % of survivor clusters (14.06 M)
+  and 61 % of survivor proteins (25.0 M) come from ONE species**: 12.24 M single-genome clusters (13.1 M proteins), 1.41 M / 3.6 M proteins in 2-4 genomes,
+  306 k / 2.6 M proteins in 5-19 genomes, 110 k / 5.7 M proteins in >= 20 genomes of one species (strain-population or accessory content of heavily
+  resequenced species, e.g. the S. cerevisiae and C. auris collections). Only 3.04 M clusters (16.0 M proteins) span >= 2 species; ~0.90 M clusters
+  (~2.9 M proteins) span >= 2 genera in one family or wider (multi-family 171 k clusters). Among clusters seen in >= 5 genomes (1.25 M): 24 % one species,
+  39 % one genus, 14 % one family, 3 % one order, 4.5 % multi-order. **So most novel-at-50 % protein mass is species-restricted; broadly distributed
+  novel families are a small fraction.**
+- Next: full survivor search (job 31828367, highclock), contamination/TE triage (E5), species-collapsed novelty, Pfam family walk.
 
 ## 12. What the old design showed and why it changed
 
