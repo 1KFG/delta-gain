@@ -238,7 +238,22 @@ The project succeeds if each of these holds:
   novel proteins); new genus in baseline family 57.0 % (1,629; 22 %); new family 63.2 %, new order 59.6 %, new class or higher
   60.2 % (475 genomes together, 7 % of novel proteins). Novel proteins per genome rise from 1,374 (strain) to 2,817 (new species)
   to 5,652-6,351 (new genus/family). Species-collapsed fractions at 50 %: 15.5 / 34.5 / 59.1 / 63.0 / 60.9 / 70.4 %.
-- Next: survivor stage (profile search of 50 % novel clusters vs baseline), join family labels (F6), Pfam family walk.
+- 2026-11-07: **survivor clusters and their labels (F6) [M]** (`bin/survivor_annotate.py`, `results/survivor_annot/`). Novel-at-50 % survivors:
+  17,095,910 clusters / 41.0 M proteins; 12.2 M clusters are seen in one genome only, 4.86 M in >= 2, 1.25 M in >= 5, 184 k in >= 20
+  (9.4 M proteins). Labelled by the cluster representative only (BFD protein id joins directly to the BFD tables). **Most "novel at 50 %"
+  clusters still carry a known Pfam domain**: fraction with a Pfam hit 41.6 % (1 genome), 51.2 % (2-4), 55.7 % (5-19), 35.9 % (>= 20);
+  CAZy 1-2 %, MEROPS 1-2 %; unannotated 58 % / 49 % / 44 % / 64 %. Most frequent Pfam among survivors in >= 5 genomes: protein kinase
+  PF00069, MFS PF07690, fungal Zn2Cys6 PF00172 / PF04082, cytochrome P450 PF00067 - i.e. divergent members of large known families. The >= 20-genome
+  class has the largest unannotated share (64 %), consistent with strain-/population-specific or repeat-derived clusters; needs the
+  contamination/TE triage (E5).
+- 2026-11-07: **survivor sensitive search, 20,000-query test [M]** (`bin/survivor_split.py`, `bin/survivor_search_summary.py`,
+  `launch/survivor_search.sbatch`): query = survivor representatives seen in >= 5 genomes (test: the 20,000 largest), target = 16.45 M tier-50
+  representatives of baseline-containing clusters, MMseqs2 search -s 6.0, e <= 1e-5, query coverage >= 0.4. Result for the test
+  (proteins): homolog (e <= 1e-10, identity >= 40 %) 75.6 %, close hit with low identity 4.5 %, distant (e 1e-10..1e-5) 1.9 %,
+  **no hit 18.1 %**. So most large survivor clusters are detectable homologs of baseline-known clusters that merely fail the 50 % / 80 %
+  coverage rule; roughly one cluster in six has no baseline homolog even by sensitive search. The test took 3.5 min on 32 CPUs;
+  the full 1.25 M-query run (job 31828362) is queued. Test queries are the largest clusters, so the full-set split may differ.
+- Next: full survivor search, contamination/TE triage (E5), orphan vs taxon-restricted (E6), Pfam family walk.
 
 ## 12. What the old design showed and why it changed
 
