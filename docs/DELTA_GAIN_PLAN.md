@@ -261,7 +261,13 @@ The project succeeds if each of these holds:
   (5.3 M proteins) span >= 2 genera (0.32 M clusters span >= 2 families). Among clusters seen in >= 5 genomes (1.25 M): 33 % one species,
   42 % one genus, 16 % one family, 4 % one order, 5 % multi-order. **So most novel-at-50 % protein mass is species-restricted; broadly distributed
   novel families are a small fraction.**
-- Next: full survivor search (job 31828367, highclock), contamination/TE triage (E5), species-collapsed novelty, Pfam family walk.
+- 2026-11-07: **contamination / TE triage of survivors (E5) [M]** (`bin/survivor_triage.py`, `results/survivor_triage/`). Genome flags: 1,067 genomes
+  with GC > 8 points from their order median and 322 with BUSCO < 50 (together 6-7 % of new genomes) supply **8.2 %** of the novel-at-50 %
+  protein mass; GC outliers are clearly more novel only for "new species in a baseline genus" (frac novel 48.5 % vs 28.8 %), and the 59 genomes
+  of new class or higher contribute 33 % of that tiny stratum's novelty from flagged genomes. Transposon/retroelement Pfam domains
+  (210 Pfam families by name) label only ~2 % of Pfam-annotated survivor clusters and **~1 % of survivor proteins** (0.9-1.1 % by genome-count class).
+  Caveats: GC is a crude contamination proxy; unannotated TE-derived genes are not counted. **Contamination and annotated TEs do not explain the survivor mass.**
+- Next: full survivor search (job 31828367, highclock), species-collapsed novelty, Pfam family walk.
 
 ## 12. What the old design showed and why it changed
 
