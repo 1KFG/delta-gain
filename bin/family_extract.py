@@ -23,6 +23,7 @@ import argparse
 import csv
 import gzip
 import os
+import re
 import sys
 from collections import defaultdict
 import multiprocessing as mp
@@ -78,39 +79,48 @@ def fetch_members(con, a, specs):
         for fam, pid, s, e, sc, ev, hf, ht, pl in q.fetchall():
             by["pfam_" + fam].append((pid, int(s), int(e), dict(
                 score=sc, evalue=ev, model_cov=round((ht - hf + 1) / pl, 3) if pl else None)))
-    cf = [s.split(":", 1)[1] for s in specs if s.startswith("cazy_family:")]
-    if cf:
-        ids = ",".join(f"'{x}'" for x in cf)
+    cf = {s.split(":", 1)[1] for s in specs if s.startswith("cazy_family:")}
+    cs = {s.split(":", 1)[1] for s in specs if s.startswith("cazy_subfamily:")}
+    if cf or cs:
+        ids = ",".join(f"'{x}'" for x in sorted(cf | {re.sub(r"_[0-9]+$", "", x) for x in cs}))
         per = defaultdict(list)
-        for fam, pid, hid, s, e, ev, cov, ec, efam, sub in con.execute(f"""
+        for fam, pid, hid, s_, e, ev, cov, ec, efam, sub in con.execute(f"""
               select regexp_replace(h.HMM_id, '_[0-9]+$', ''), h.protein_id, h.HMM_id, h.s_start, h.s_end,
                      h.evalue, h.coverage, o.EC, o.sub_fam, o.substrate
               from read_parquet('{t}/cazy.cazymes_hmm.parquet') h
               left join read_parquet('{t}/cazy.overview.parquet') o on o.protein_id = h.protein_id
               where regexp_replace(h.HMM_id, '_[0-9]+$', '') in ({ids})
                 and split_part(h.protein_id, '_', 1) in (select prefix from gsel)""").fetchall():
-            per[fam].append((pid, int(s), int(e), float(ev), (hid, cov, ec, efam, sub)))
-        for fam, rows in per.items():
-            for pid, s, e, ev, (hid, cov, ec, efam, sub) in merge_hits(rows):
-                by["cazy_family_" + fam].append((pid, s, e, dict(
+            row = (pid, int(s_), int(e), float(ev), (hid, cov, ec, efam, sub))
+            if fam in cf:
+                per[("cazy_family_", fam)].append(row)
+            if hid in cs:
+                per[("cazy_subfamily_", hid)].append(row)
+        for (lev, fam), rows in per.items():
+            for pid, s_, e, ev, (hid, cov, ec, efam, sub) in merge_hits(rows):
+                by[lev + fam].append((pid, s_, e, dict(
                     evalue=ev, model_cov=cov, sub=hid, efam=efam, ec=ec, substrate=sub)))
-    mf = [s.split(":", 1)[1] for s in specs if s.startswith("merops_family:")]
-    if mf:
-        ids = ",".join(f"'{x}'" for x in mf)
+    mf = {s.split(":", 1)[1] for s in specs if s.startswith("merops_family:")}
+    ms = {s.split(":", 1)[1] for s in specs if s.startswith("merops_subfamily:")}
+    if mf or ms:
         con.execute(f"""create or replace table mmap as
           select column0 mer, column1 subfam, split_part(column2, '.', 1) fam
           from read_csv('{a.merops_map}', delim='\t', header=false, all_varchar=true)""")
+        sel = ",".join(f"'{x}'" for x in sorted(mf | ms))
         per = defaultdict(list)
-        for fam, pid, mer, s, e, ev, pid_, bs in con.execute(f"""
-              select f.fam, m.protein_id, m.merops_id, m.q_start, m.q_end, m.evalue, m.percent_identity, m.bitscore
+        for fam, subfam, pid, mer, s_, e, ev, pid_, bs in con.execute(f"""
+              select f.fam, f.subfam, m.protein_id, m.merops_id, m.q_start, m.q_end, m.evalue, m.percent_identity, m.bitscore
               from read_parquet('{t}/merops.parquet') m join mmap f on f.mer = m.merops_id
-              where f.fam in ({ids}) and split_part(m.protein_id, '_', 1) in (select prefix from gsel)"""
-                                              ).fetchall():
-            per[fam].append((pid, int(min(s, e)), int(max(s, e)), float(ev), (mer, pid_, bs)))
-        for fam, rows in per.items():
-            for pid, s, e, ev, (mer, pident, bs) in merge_hits(rows):
-                by["merops_family_" + fam].append((pid, s, e, dict(
-                    evalue=ev, score=bs, sub=mer, pident=pident)))
+              where (f.fam in ({sel}) or f.subfam in ({sel})) and split_part(m.protein_id, '_', 1) in (select prefix from gsel)"""
+                                                          ).fetchall():
+            row = (pid, int(min(s_, e)), int(max(s_, e)), float(ev), (mer, pid_, bs))
+            if fam in mf:
+                per[("merops_family_", fam)].append(row)
+            if subfam in ms:
+                per[("merops_subfamily_", subfam)].append(row)
+        for (lev, fam), rows in per.items():
+            for pid, s_, e, ev, (mer, pident, bs) in merge_hits(rows):
+                by[lev + fam].append((pid, s_, e, dict(evalue=ev, score=bs, sub=mer, pident=pident)))
     return by
 
 
