@@ -225,6 +225,19 @@ The project succeeds if each of these holds:
   Per genome (17,864; `summary/genome_tier.tsv`) the spread is wide: median fraction novel 35.6 % / 14.1 % / 10.2 % at
   95 / 70 / 50 %, 90th percentile 99.5 % / 82.1 % / 62.0 % (new-taxon genomes vs strains of baseline species).
   Nested clusters from stage 4: `summary/survivors_clusters.tsv` (1.0 GB).
+- 2026-11-07: **predictor-mismatch control (E1) [M]** (`bin/predictor_control_prep.py`, `launch/predictor_control.sbatch`,
+  `results/predictor_control/`): 300 baseline genomes annotated by NCBI (run A) vs by BFD (run B), each scored against the same
+  reference of 1,000 other baseline genomes' NCBI proteins (the test genomes are not in the reference). Novel fraction A -> B:
+  95 % 57.3 -> 60.0 %, 70 % 34.5 -> 35.8 %, 50 % 25.7 -> 26.8 % (protein counts 3.37 M vs 3.32 M; per-genome median change
+  +0.3 / +0.8 / +1.0 points, 10th-90th percentile at 50 % -4.6 to +6.0 points; BFD higher in 64 % of genomes). **The NCBI-vs-BFD
+  gene-model difference inflates funnel novelty by only ~1.5-3 points (mean) - it does not explain the headline 50 / 29 / 22 %.**
+  Absolute levels are higher than the full funnel because the reference has 1,000 not 5,703 genomes.
+- 2026-11-07: **rank decomposition of funnel novelty (E2) [M]** (`results/delta_funnel/summary/genome_stratum.tsv`): new genomes
+  tagged by the lowest rank they share with a baseline genome. Novel at 50 %: strain of baseline species 13.3 % (10,673 genomes,
+  60 % of new proteins, 36 % of novel proteins, median genome 5 %); new species in baseline genus 27.6 % (5,087 genomes, 35 % of
+  novel proteins); new genus in baseline family 57.0 % (1,629; 22 %); new family 63.2 %, new order 59.6 %, new class or higher
+  60.2 % (475 genomes together, 7 % of novel proteins). Novel proteins per genome rise from 1,374 (strain) to 2,817 (new species)
+  to 5,652-6,351 (new genus/family). Species-collapsed fractions at 50 %: 15.5 / 34.5 / 59.1 / 63.0 / 60.9 / 70.4 %.
 - Next: survivor stage (profile search of 50 % novel clusters vs baseline), join family labels (F6), Pfam family walk.
 
 ## 12. What the old design showed and why it changed
