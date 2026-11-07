@@ -257,9 +257,9 @@ The project succeeds if each of these holds:
   nested tiers to their NEW proteins; 17,095,910 clusters / 41,042,274 proteins recovered exactly). **82 % of survivor clusters (14.06 M)
   and 61 % of survivor proteins (25.0 M) come from ONE species**: 12.24 M single-genome clusters (13.1 M proteins), 1.41 M / 3.6 M proteins in 2-4 genomes,
   306 k / 2.6 M proteins in 5-19 genomes, 110 k / 5.7 M proteins in >= 20 genomes of one species (strain-population or accessory content of heavily
-  resequenced species, e.g. the S. cerevisiae and C. auris collections). Only 3.04 M clusters (16.0 M proteins) span >= 2 species; ~0.90 M clusters
-  (~2.9 M proteins) span >= 2 genera in one family or wider (multi-family 171 k clusters). Among clusters seen in >= 5 genomes (1.25 M): 24 % one species,
-  39 % one genus, 14 % one family, 3 % one order, 4.5 % multi-order. **So most novel-at-50 % protein mass is species-restricted; broadly distributed
+  resequenced species, e.g. the S. cerevisiae and C. auris collections). Only 3.04 M clusters (16.0 M proteins) span >= 2 species; 0.90 M clusters
+  (5.3 M proteins) span >= 2 genera (0.32 M clusters span >= 2 families). Among clusters seen in >= 5 genomes (1.25 M): 33 % one species,
+  42 % one genus, 16 % one family, 4 % one order, 5 % multi-order. **So most novel-at-50 % protein mass is species-restricted; broadly distributed
   novel families are a small fraction.**
 - Next: full survivor search (job 31828367, highclock), contamination/TE triage (E5), species-collapsed novelty, Pfam family walk.
 
