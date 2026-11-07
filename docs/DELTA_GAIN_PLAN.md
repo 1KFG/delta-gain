@@ -274,7 +274,19 @@ The project succeeds if each of these holds:
   only the 4,632 species absent from the baseline: 85.6 / 58.3 / 43.7 %. **So the all-genome headline understates novelty per species and per lineage
   (resequenced strains add little); the per-species view (about 40 % novel at 50 % identity) is the better measure of how much sequence diversity the new
   genomes add, and is dominated by new species.**
-- Next: full survivor search (job 31828367, highclock), subfamily-level family runs, Pfam family walk.
+- 2026-11-07: **full survivor sensitive search [M]** (job 31828367, highclock, 1 h 25 min; `results/survivor_search/`). Queries = the 1,254,423 survivor
+  representatives seen in >= 5 genomes (18.4 M proteins); targets = 16.45 M representatives of baseline-containing 50 % clusters; MMseqs2 -s 6.0, e <= 1e-5, query coverage >= 0.4.
+  Clusters (proteins): **homolog of a baseline-known cluster (e <= 1e-10, identity >= 40 %) 79.3 % (77.6 %)**; close hit with identity < 40 % 8.5 % (7.3 %); distant (e 1e-10..1e-5)
+  1.6 % (1.8 %); **no hit 10.7 % = 133,599 clusters / 2.45 M proteins (13.3 %)**. Pfam labels: homolog class 61 %, low-identity 44 %, distant 9 %, **no-hit class 4.8 %**;
+  CAZy/MEROPS in the no-hit class 0.2 %. No-hit clusters are mostly narrow: 62 % one species (mean 2.2 species), 5 % span >= 2 genera, 1 % >= 2 orders.
+  **Conclusion: of the 41.0 M proteins that are novel at 50 % identity / 80 % coverage, the ones in clusters seen in >= 5 genomes are overwhelmingly
+  detectable homologs of baseline families; only ~2.5 M proteins (about 6 % of survivor proteins, 1.3 % of all new proteins) in 134 k clusters have no baseline homolog even
+  by sensitive search, and these are mostly small, lineage-restricted and unannotated (candidate orphan / lineage-specific genes, or gene-model artefacts - not yet
+  triaged). Clusters in 1-4 genomes (15.8 M clusters, 22.6 M proteins) were not searched.**
+- Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
+  survivor labels / breadth / triage / sensitive search. Not done: profile-HMM-based search (MMseqs2 sequence search used instead), structure prediction
+  (cannot fit before the 2026-11-10 shutdown), clade-matched null for baseline-less orders (F3c), split-sample test of the Pfam enrichment list, catalytic-residue
+  / architecture analysis, search of survivors in 1-4 genomes, antiSMASH/BGC, lifestyle correlates, HGT.
 
 ## 12. What the old design showed and why it changed
 
