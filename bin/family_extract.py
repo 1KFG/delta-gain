@@ -168,6 +168,11 @@ def main(argv=None):
     ap.add_argument("--families", nargs="+", default=DEFAULT_FAMILIES)
     ap.add_argument("--census-dir", default=None, help="add --auto-duf families from pfam_census.tsv")
     ap.add_argument("--auto-duf", type=int, default=0)
+    ap.add_argument("--auto-pfam", type=int, default=0,
+                    help="top N Pfam families (any name) by species-level prevalence ratio in the census "
+                         "(g_new >= 100, q_species < 0.01)")
+    ap.add_argument("--auto-levels", nargs="*", default=[],
+                    help="add EVERY family of these census levels, e.g. cazy_family merops_family")
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--memory-limit", default="32GB")
     ap.add_argument("--tmp-dir", default=None)
@@ -188,6 +193,26 @@ def main(argv=None):
         duf = [f"pfam:{f}" for _, f, _n in rows[:a.auto_duf]]
         print("auto DUF families:", [(f, n, round(l, 2)) for l, f, n in rows[:a.auto_duf]], flush=True)
         specs += [s for s in duf if s not in specs]
+
+    if a.auto_pfam:
+        # NB: ranking by enrichment in new genomes selects the best case for 'new adds diversity'
+        rows = []
+        with open(os.path.join(a.census_dir, "pfam_census.tsv")) as fh:
+            for r in csv.DictReader(fh, delimiter="\t"):
+                if r["q_species"] != "NA" and int(r["g_new"]) >= 100 and float(r["q_species"]) < 0.01:
+                    rows.append((float(r["log2_prev_ratio_species"]), r["family"], r["name"]))
+        rows.sort(reverse=True)
+        top = [f"pfam:{f}" for _, f, _n in rows[:a.auto_pfam]]
+        print(f"auto Pfam: {len(top)} of {len(rows)} eligible; top5", rows[:5], flush=True)
+        specs += [s for s in top if s not in specs]
+    for lev in a.auto_levels:
+        fams = []
+        with open(os.path.join(a.census_dir, lev.split("_")[0] + "_census.tsv")) as fh:
+            for r in csv.DictReader(fh, delimiter="\t"):
+                if r["level"] == lev:
+                    fams.append(f"{lev}:{r['family']}")
+        print(f"auto level {lev}: {len(fams)} families", flush=True)
+        specs += [s for s in fams if s not in specs]
 
     con = duckdb.connect()
     con.execute(f"PRAGMA threads={a.threads}")
