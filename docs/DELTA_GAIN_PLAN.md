@@ -283,10 +283,15 @@ The project succeeds if each of these holds:
   detectable homologs of baseline families; only ~2.5 M proteins (about 6 % of survivor proteins, 1.3 % of all new proteins) in 134 k clusters have no baseline homolog even
   by sensitive search, and these are mostly small, lineage-restricted and unannotated (candidate orphan / lineage-specific genes, or gene-model artefacts - not yet
   triaged). Clusters in 1-4 genomes (15.8 M clusters, 22.6 M proteins) were not searched.**
+- Profile search of the no-hit survivor clusters (2026-11-07): the 133,599 no-hit clusters (2,453,840 proteins) were re-clustered at 30 % identity into 107,819
+  profile clusters, each turned into a profile and searched (-s 7.0, e <= 1e-3, qcov >= 0.4) against baseline-known reps. **10,976 profile clusters (10.2 %), 315,862
+  proteins (12.9 %) gain a baseline hit; 96,843 clusters (89.8 %), 2.14 M proteins remain without any detectable baseline homolog.**
+- Singleton sample (1 M survivor clusters seen in 1 genome, sensitive search): 63.0 % homolog, 12.8 % close low-identity, 2.9 % distant, 21.2 % no hit (by clusters).
+  Singletons are therefore about twice as likely as >= 5-genome clusters (10.7 %) to lack any homolog, consistent with a mix of real orphans and gene-model artefacts.
 - Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
-  survivor labels / breadth / triage / sensitive search. Not done: profile-HMM-based search (MMseqs2 sequence search used instead), structure prediction
-  (cannot fit before the 2026-11-10 shutdown), clade-matched null for baseline-less orders (F3c), split-sample test of the Pfam enrichment list, catalytic-residue
-  / architecture analysis, search of survivors in 1-4 genomes, antiSMASH/BGC, lifestyle correlates, HGT.
+  survivor labels / breadth / triage / sensitive search (>= 5 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null, split-sample test,
+  approximate-motif / architecture analysis. Pending when written: full 2-4-genome sensitive search (job 31830779). Not done: structure prediction
+  (cannot fit before the 2026-11-10 shutdown), alignment-based catalytic-residue analysis, antiSMASH/BGC, lifestyle correlates, HGT.
 
 ## 12. What the old design showed and why it changed
 
