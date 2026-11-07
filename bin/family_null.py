@@ -110,14 +110,17 @@ def summarise(res):
 
 
 def load_genomes(a):
+    h = getattr(a, "species_half", -1)
+    half = (f"and hash(coalesce(nullif(s.SPECIES, ''), s.ASMID) || '{a.split_seed}') % 2 = {h}" if h in (0, 1) else "")
     con = duckdb.connect()
     rows = con.execute(f"""
       select s.ASMID, replace(c."class", chr(13), ''), coalesce(nullif(s."ORDER", ''), 'NA'),
-             coalesce(nullif(s.SPECIES, ''), s.ASMID)
+             coalesce(nullif(s.SPECIES, ''), s.ASMID), coalesce(nullif(s."CLASS", ''), 'NA')
       from read_parquet('{a.tables_dir}/species.parquet') s
       join read_csv('{a.classes}', delim='\t', header=true, all_varchar=true) c on c.ASMID = s.ASMID
       where replace(c."class", chr(13), '') in ('baseline', 'new')
-        and replace(c.pep_status, chr(13), '') = 'matched'""").fetchall()
+        and replace(c.pep_status, chr(13), '') = 'matched'
+        {half}""").fetchall()
     con.close()
     return rows
 
@@ -142,6 +145,7 @@ def family_arrays(key, a, asm):
         read_csv('{mt}', delim='\t', header=true, all_varchar=true) m
         join read_csv('{ct}', delim='\t', header=true, all_varchar=true) a using (region_id)""").fetchall()
     con.close()
+    rows = [r for r in rows if r[0] in asm]  # split-sample runs keep only one species half
     g_r = np.array([asm[r[0]] for r in rows])
     cls = {}
     for j, l in enumerate(labels, start=1):
@@ -186,6 +190,9 @@ def main(argv=None):
     ap.add_argument("--fractions", type=float, nargs="+", default=[0.05, 0.2])
     ap.add_argument("--draws", type=int, default=200)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--species-half", type=int, default=-1,
+                    help="0/1: use only species with hash(species||seed) %% 2 == this (split-sample test)")
+    ap.add_argument("--split-seed", default="7")
     ap.add_argument("--aggregate", action="store_true")
     a = ap.parse_args(argv)
     os.makedirs(a.outdir, exist_ok=True)

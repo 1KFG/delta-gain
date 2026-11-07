@@ -72,6 +72,10 @@ def build_genomes(con, a):
       where replace(c."class", chr(13), '') in ('baseline', 'new')
         and replace(c.pep_status, chr(13), '') = 'matched'
     """)
+    if getattr(a, "species_half", -1) in (0, 1):
+        con.execute(f"""create table gen_h as select * from gen where hash(species || '{a.split_seed}') % 2 = {a.species_half}""")
+        con.execute("drop table gen")
+        con.execute("create table gen as select * from gen_h")
     if a.max_genomes:
         n = int(a.max_genomes)
         con.execute(f"""
@@ -204,6 +208,9 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--memory-limit", default="64GB")
     ap.add_argument("--tmp-dir", default=None)
+    ap.add_argument("--species-half", type=int, default=-1,
+                    help="0/1: keep only species whose hash(species||seed) %% 2 equals this (split-sample test)")
+    ap.add_argument("--split-seed", default="7")
     ap.add_argument("--max-genomes", type=int, default=0,
                     help="test mode: keep N genomes per class (hash order)")
     a = ap.parse_args(argv)

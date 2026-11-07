@@ -25,10 +25,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python -I drop
 import family_null as fn  # noqa: E402
 
 COLS = ["family", "tier", "variant", "order", "group", "n_base", "n_new", "k", "draws",
-        "stat_mean", "stat_lo", "stat_hi"]
+        "stat_mean", "stat_lo", "stat_hi", "cls"]
 
 
-def make_order_draws(g_cls, g_ord, g_sp, K, n_draws, collapse, rng, min_base, min_new):
+def make_order_draws(g_cls, g_ord, g_sp, K, n_draws, collapse, rng, min_base, min_new, g_cl=None):
     """-> list of (order_idx, group, k, [index arrays])."""
     out = []
     for o in np.unique(g_ord):
@@ -57,6 +57,21 @@ def make_order_draws(g_cls, g_ord, g_sp, K, n_draws, collapse, rng, min_base, mi
             p = fn.one_per_species(rng, pool, g_sp) if collapse else pool
             ds.append(rng.choice(p, k, replace=False))
         out.append((-1, "new_only_pool", k, ds))
+    # F3c: baseline-less orders grouped by taxonomic class (reference = whole baseline; sentinel -(class index + 2))
+    if g_cl is not None:
+        base_cl = set(g_cl[g_cls == 0].tolist())
+        for cl in sorted(set(g_cl[pool].tolist()) if len(pool) else []):
+            if cl not in base_cl:
+                continue
+            pc = pool[g_cl[pool] == cl]
+            avail = len(np.unique(g_sp[pc])) if collapse else len(pc)
+            if len(pc) >= min_new and avail:
+                k = min(K, avail)
+                ds = []
+                for _ in range(n_draws):
+                    p = fn.one_per_species(rng, pc, g_sp) if collapse else pc
+                    ds.append(rng.choice(p, k, replace=False))
+                out.append((-int(cl) - 2, "new_only_class", k, ds))
     return out
 
 
@@ -92,26 +107,35 @@ def eval_order_family(cl, g_r, sp_g, g_cls, g_ord, order_draws, collapse):
 def run_order_null(g_rows, fam_inputs, K, n_draws, seed, min_base, min_new):
     asm, g_cls, g_ord, g_sp, n_sp = fn.genome_arrays(g_rows)
     ord_names = np.unique([r[2] for r in g_rows])
+    cl_names, g_cl = np.unique([r[4] if len(r) > 4 else "NA" for r in g_rows], return_inverse=True)
+    ord_cl = {}
+    for oi, cli in zip(g_ord, g_cl):
+        ord_cl.setdefault(int(oi), int(cli))
     out = []
     base_ord = set(g_ord[g_cls == 0].tolist())
     n_pool = int(sum(1 for i in np.where(g_cls == 1)[0] if g_ord[i] not in base_ord))
     for variant in ("genome", "species"):
         collapse = variant == "species"
         rng = np.random.default_rng(seed)
-        od = make_order_draws(g_cls, g_ord, g_sp, K, n_draws, collapse, rng, min_base, min_new)
+        od = make_order_draws(g_cls, g_ord, g_sp, K, n_draws, collapse, rng, min_base, min_new, g_cl)
         for key, (labels, g_r, cls) in fam_inputs.items():
             for lab in labels:
                 res = eval_order_family(cls[lab], g_r, g_sp, g_cls, g_ord, od, collapse)
                 for o, group, k, _ in od:
                     v = res[(o, group)]
-                    if o < 0:
-                        nb, nn, oname = 0, n_pool, "NEW_ONLY_POOL"
+                    if o <= -2:
+                        ci = -o - 2
+                        nb, oname, ocl = 0, "CLASS:" + str(cl_names[ci]), str(cl_names[ci])
+                        nn = int(sum(1 for i in np.where(g_cls == 1)[0] if g_ord[i] not in base_ord and g_cl[i] == ci))
+                    elif o < 0:
+                        nb, nn, oname, ocl = 0, n_pool, "NEW_ONLY_POOL", "NA"
                     else:
                         nb = int(((g_ord == o) & (g_cls == 0)).sum())
                         nn = int(((g_ord == o) & (g_cls == 1)).sum())
                         oname = ord_names[o]
+                        ocl = str(cl_names[ord_cl[o]])
                     out.append([key, lab, variant, oname, group, nb, nn, k, n_draws,
-                                float(np.nanmean(v)), fn.q(v, 2.5), fn.q(v, 97.5)])
+                                float(np.nanmean(v)), fn.q(v, 2.5), fn.q(v, 97.5), ocl])
     return out
 
 
@@ -145,6 +169,16 @@ def aggregate(outdir, K, min_base):
     con = duckdb.connect()
     con.execute(f"copy ({SUMMARY_SQL.format(f=allf, K=K, mb=min_base)}) to "
                 f"'{os.path.join(outdir, 'order_null_summary.tsv')}' (delimiter '\t', header)")
+    con.execute(f"""copy (
+      with b as (select family, tier, variant, cls, count(*) n_base_orders, median(try_cast(stat_mean as double)) base_med
+                 from read_csv('{allf}', delim='\t', header=true, all_varchar=true)
+                 where "group" = 'base_out' and k = '{K}' and stat_mean <> 'NA' group by all),
+           n as (select family, tier, variant, cls, try_cast(stat_mean as double) new_stat, n_new
+                 from read_csv('{allf}', delim='\t', header=true, all_varchar=true)
+                 where "group" = 'new_only_class' and stat_mean <> 'NA')
+      select n.family, n.tier, n.variant, n.cls, n.n_new, n.new_stat, b.base_med, b.n_base_orders, n.new_stat - b.base_med diff
+      from n join b using (family, tier, variant, cls) order by 1, 2, 3, 4)
+      to '{os.path.join(outdir, 'order_null_class.tsv')}' (delimiter '\t', header)""")
     con.close()
     print("aggregated", len(files))
 

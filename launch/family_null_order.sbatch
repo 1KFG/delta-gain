@@ -23,5 +23,5 @@ KEY=$(tail -n +2 "$REGIONS/regions_summary.tsv" | cut -f1 | sed -n "${SLURM_ARRA
 mkdir -p "$OUT"
 echo "[$(date)] order-null $KEY draws=${DRAWS:-200}"
 $PY -I $DG/bin/family_null_order.py --members-dir "$REGIONS" --clusters-dir "$CLUSTERS" --tables-dir "$TABLES" \
-  --classes "$CLASSES" --outdir "$OUT" --families "$KEY" --draws ${DRAWS:-200}
+  --classes "$CLASSES" --outdir "$OUT" --families "$KEY" --draws ${DRAWS:-200} -K ${KGEN:-10} --min-base ${MINBASE:-20} --min-new ${MINNEW:-10}
 echo "[$(date)] done"

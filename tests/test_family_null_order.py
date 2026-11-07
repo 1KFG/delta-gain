@@ -38,3 +38,13 @@ def test_order_null():
         assert d[(v, "o3", "new")]["stat_mean"] == 1.0
         # o1 has only one new genome -> below min_new, not reported
         assert (v, "o1", "new") not in d
+
+
+def test_class_matched_group():
+    g_rows, fam = scenario()
+    g_rows = [r + ("C1",) for r in g_rows]  # all in one class: o3 (no baseline) is matched to C1 baseline orders
+    rows = fo.run_order_null(g_rows, fam, K=3, n_draws=10, seed=1, min_base=3, min_new=2)
+    d = {(r[2], r[4]): dict(zip(fo.COLS, r)) for r in rows}
+    r = d[("genome", "new_only_class")]
+    assert r["order"] == "CLASS:C1" and r["cls"] == "C1" and r["stat_mean"] == 1.0 and r["n_new"] == 2
+    assert d[("genome", "base_out")]["cls"] == "C1"

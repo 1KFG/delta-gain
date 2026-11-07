@@ -16,7 +16,7 @@ FUNGI=${FUNGI:-/bigdata/stajichlab/shared/projects/BFD/DeltaGain_Fungi}
 DG=${DG:-/bigdata/stajichlab/shared/projects/BFD/DeltaGain}
 FUN=${FUN:-$FUNGI/results/delta_funnel}
 OUT=${OUT:-$FUNGI/results/survivor_search}
-MING=${MING:-5}; MAXQ=${MAXQ:-0}; SENS=${SENS:-6.0}
+MING=${MING:-5}; MAXG=${MAXG:-0}; SAMPLE=${SAMPLE:-0}; MAXQ=${MAXQ:-0}; SENS=${SENS:-6.0}
 PY=${PY:-$FUNGI/.venv-pangenome/bin/python}
 SIF=${MMSEQS_SIF:-/bigdata/stajichlab/shared/singularity_cache/depot.galaxyproject.org-singularity-mmseqs2-17.b804f--hd6d6fdc_1.img}
 MMSEQS="apptainer exec --bind /bigdata --bind ${SCRATCH:-/tmp} $SIF mmseqs"
@@ -26,7 +26,7 @@ cd "$OUT"
 if [[ ! -s query.faa ]]; then
   echo "[$(date)] split"
   $PY -I $DG/bin/survivor_split.py --reps $FUN/tier_50_reps.faa --survivors $FUN/summary/survivors_clusters.tsv \
-     --min-genomes $MING --max-query $MAXQ --out-query query.faa --out-target target.faa
+     --min-genomes $MING --max-genomes $MAXG --sample $SAMPLE --max-query $MAXQ --out-query query.faa --out-target target.faa
 fi
 echo "[$(date)] createdb"
 $MMSEQS createdb query.faa "$TMP/q" -v 1
