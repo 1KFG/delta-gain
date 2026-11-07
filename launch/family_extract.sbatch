@@ -23,6 +23,6 @@ PY=${PY:-$FUNGI/.venv-pangenome/bin/python}
 mkdir -p "$OUT"; TMP=$OUT/_duckdb_tmp.$$; mkdir -p "$TMP"; trap "rm -rf $TMP" EXIT
 echo "[$(date)] family extract  max_genomes=${MAXG:-0} auto_duf=${AUTODUF:-10}"
 $PY -I $DG/bin/family_extract.py --tables-dir "$TABLES" --classes "$CLASSES" --manifest "$MANIFEST" \
-  --outdir "$OUT" --census-dir "$CENSUS" --auto-duf ${AUTODUF:-10} --auto-pfam ${AUTOPFAM:-0} ${AUTOLEVELS:+--auto-levels $AUTOLEVELS} --threads $SLURM_CPUS_PER_TASK \
+  --outdir "$OUT" --census-dir "$CENSUS" --auto-duf ${AUTODUF:-10} --auto-pfam ${AUTOPFAM:-0} ${FAMILIES:+--families $FAMILIES} ${AUTOLEVELS:+--auto-levels $AUTOLEVELS} --threads $SLURM_CPUS_PER_TASK \
   --memory-limit $((SLURM_MEM_PER_NODE*3/4/1024))GB --tmp-dir "$TMP" --max-genomes ${MAXG:-0}
 echo "[$(date)] done"
