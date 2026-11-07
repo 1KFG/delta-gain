@@ -267,7 +267,14 @@ The project succeeds if each of these holds:
   of new class or higher contribute 33 % of that tiny stratum's novelty from flagged genomes. Transposon/retroelement Pfam domains
   (210 Pfam families by name) label only ~2 % of Pfam-annotated survivor clusters and **~1 % of survivor proteins** (0.9-1.1 % by genome-count class).
   Caveats: GC is a crude contamination proxy; unannotated TE-derived genes are not counted. **Contamination and annotated TEs do not explain the survivor mass.**
-- Next: full survivor search (job 31828367, highclock), species-collapsed novelty, Pfam family walk.
+- 2026-11-07: **species-collapsed / rarefied funnel novelty (E3) [M]** (from `genome_stratum.tsv`). The headline 50.2 / 29.2 / 22.4 % is
+  protein-weighted, so heavily resequenced species (60 % of new proteins are strains of baseline species) dominate it. Rarefying to k random genomes
+  per species (50 draws, protein-weighted) gives 95 / 70 / 50 %: k = 1 76.9 / 49.9 / 37.6; k = 2 74.6 / 47.5 / 35.8; k = 5 70.5 / 44.0 / 33.1; k = 10 67.1 / 41.3 / 31.2;
+  all genomes 50.2 / 29.2 / 22.4. One value per species (median over its genomes): 5,454 species, mean novel 78.7 / 52.4 / 39.4 %, median at 50 % 37 %;
+  only the 4,632 species absent from the baseline: 85.6 / 58.3 / 43.7 %. **So the all-genome headline understates novelty per species and per lineage
+  (resequenced strains add little); the per-species view (about 40 % novel at 50 % identity) is the better measure of how much sequence diversity the new
+  genomes add, and is dominated by new species.**
+- Next: full survivor search (job 31828367, highclock), subfamily-level family runs, Pfam family walk.
 
 ## 12. What the old design showed and why it changed
 
