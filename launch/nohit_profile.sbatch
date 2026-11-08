@@ -31,14 +31,12 @@ if [[ ! -s members.faa ]]; then
   $PY -I $DG/bin/nohit_profile_prep.py --funnel-dir $FUN --best $BEST --outdir . --max-clusters $MAXC \
       --memory-limit $((${SLURM_MEM_PER_NODE:-100000}*3/4/1024))GB --tmp-dir $TMP
 fi
-echo "[$(date)] createdb + clusters"
+echo "[$(date)] createdb + cluster members (30 % id) + align -a + result2profile"
 $MMSEQS createdb members.faa $TMP/mem -v 1
-$MMSEQS tsv2db clusters.tsv $TMP/mem $TMP/clu --output-dbtype 6 -v 1
-cut -f1 clusters.tsv | sort -u > reps.txt
-echo "[$(date)] align members to reps"
+$MMSEQS cluster $TMP/mem $TMP/clu $TMP/ctmp --min-seq-id 0.3 -c 0.5 -s 5.0 --threads $THREADS -v 1
 $MMSEQS align $TMP/mem $TMP/mem $TMP/clu $TMP/aln -a --threads $THREADS -v 1
-echo "[$(date)] result2profile"
 $MMSEQS result2profile $TMP/mem $TMP/mem $TMP/aln $TMP/prof --threads $THREADS -v 1
+$MMSEQS createtsv $TMP/mem $TMP/mem $TMP/clu profile_clusters.tsv --threads $THREADS -v 1
 echo "[$(date)] profile search vs baseline-known reps"
 $MMSEQS createdb $TARGET $TMP/t -v 1
 $MMSEQS search $TMP/prof $TMP/t $TMP/res $TMP/tmp -s $SENS -e 1e-3 --max-seqs 20 -c 0.4 --cov-mode 2 --threads $THREADS \
@@ -50,9 +48,14 @@ best={}
 for q,t,pid,ev,bits,qc,tc in csv.reader(open("profile_hits.tsv"),delimiter="\t"):
     ev=float(ev)
     if q not in best or ev<best[q]: best[q]=ev
-reps=[l.strip() for l in open("reps.txt")]
-hit=sum(1 for r in reps if r in best)
-print("profile search: clusters",len(reps),"with hit",hit,"no hit",len(reps)-hit)
-open("profile_summary.txt","w").write(f"clusters\t{len(reps)}\nwith_hit\t{hit}\nno_hit\t{len(reps)-hit}\n")
+n=nh=0; reps=set(); hit=set(); prot=0; prot_hit=0
+for rep,mem in csv.reader(open("profile_clusters.tsv"),delimiter="\t"):
+    reps.add(rep); prot+=1
+    if rep in best:
+        prot_hit+=1
+for r in reps:
+    if r in best: hit.add(r)
+txt=f"profile_clusters\t{len(reps)}\nwith_hit\t{len(hit)}\nno_hit\t{len(reps)-len(hit)}\nproteins\t{prot}\nproteins_in_hit_clusters\t{prot_hit}\n"
+open("profile_summary.txt","w").write(txt); print(txt)
 PY
 echo "[$(date)] done"
