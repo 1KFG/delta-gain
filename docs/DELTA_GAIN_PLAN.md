@@ -288,10 +288,19 @@ The project succeeds if each of these holds:
   proteins (12.9 %) gain a baseline hit; 96,843 clusters (89.8 %), 2.14 M proteins remain without any detectable baseline homolog.**
 - Singleton sample (1 M survivor clusters seen in 1 genome, sensitive search): 63.0 % homolog, 12.8 % close low-identity, 2.9 % distant, 21.2 % no hit (by clusters).
   Singletons are therefore about twice as likely as >= 5-genome clusters (10.7 %) to lack any homolog, consistent with a mix of real orphans and gene-model artefacts.
+- Lifestyle correlates (2026-11-07; `bin/lifestyle_novelty.py`, FungalTraits 1.2 genus table, Polme et al. 2020, `refs/lifestyle/`; results `results/lifestyle*`).
+  1,061 of 1,204 genera with a new genome (16,085 of 17,865 genomes) have a lifestyle; unit = genus; contrast = genus mean minus its order mean (within-order),
+  permutation test shuffling labels among genera inside each order (2,000 draws). Coarse genus-level labels, so only a screen.
+  All new genomes, within-order deviation in the novel fraction at 50 % identity: mycorrhizal +4.4 points (p 0.0005), saprotroph +1.2 (p 0.016), plant pathogen
+  -3.9 (p 0.0005), animal-associated -2.8 (n.s.); yeast growth form -4.1 vs filamentous +4.4. These shrink or vanish when relatedness is held fixed:
+  restricted to new species in a baseline genus, mycorrhizal stays +7.5 (p 0.003) while plant pathogen (-0.7), saprotroph, animal and yeast are about 0; restricted to
+  new genus or higher, plant pathogens stay -3.0 (p 0.0045) and mycorrhizal +2.0 (p 0.012). Reading: most lifestyle differences are sampling depth / relatedness
+  (plant pathogens and yeasts have deep baseline coverage); the robust signal is that **mycorrhizal (mostly Agaricomycetes) genomes are more novel than their
+  order mates at every relatedness level**, and plant pathogens are somewhat less novel among taxonomically distant genomes. Not causal: lifestyle is nested in clade.
 - Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
   survivor labels / breadth / triage / sensitive search (>= 5 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null, split-sample test,
-  approximate-motif / architecture analysis. Pending when written: full 2-4-genome sensitive search (job 31830779). Not done: structure prediction
-  (cannot fit before the 2026-11-10 shutdown), alignment-based catalytic-residue analysis, antiSMASH/BGC, lifestyle correlates, HGT.
+  approximate-motif / architecture analysis, lifestyle correlates. Pending when written: full 2-4-genome sensitive search (job 31830779). Not done: structure prediction
+  (cannot fit before the 2026-11-10 shutdown), alignment-based catalytic-residue analysis (in progress), antiSMASH/BGC, HGT.
 
 ## 12. What the old design showed and why it changed
 
