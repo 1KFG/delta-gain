@@ -297,10 +297,22 @@ The project succeeds if each of these holds:
   new genus or higher, plant pathogens stay -3.0 (p 0.0045) and mycorrhizal +2.0 (p 0.012). Reading: most lifestyle differences are sampling depth / relatedness
   (plant pathogens and yeasts have deep baseline coverage); the robust signal is that **mycorrhizal (mostly Agaricomycetes) genomes are more novel than their
   order mates at every relatedness level**, and plant pathogens are somewhat less novel among taxonomically distant genomes. Not causal: lifestyle is nested in clade.
+- Sensitive search of survivors in 2-4 genomes (job 31830779, 5 h; 3,602,662 clusters of the 17.1 M searched; queries = clusters with 2-4 genomes, same -s 6.0 settings):
+  by clusters 74.2 % homolog, 11.1 % close low-identity, 1.9 % distant, **12.8 % no hit (460,890 clusters, 1.22 M proteins)**. Together with the >= 5-genome (10.7 %) and
+  singleton-sample (21.2 %) results, the no-hit share rises as genome count falls (10.7 -> 12.8 -> 21.2 %), as expected if no-hit clusters are enriched for gene-model
+  artefacts and recent lineage-specific genes. (Note: 3.6 M queries rather than the 5.08 M planned: the 2-4 genome clusters are fewer than the earlier estimate.)
+- Alignment-based catalytic-residue check (`bin/catalytic_align.py`, hmmalign to Pfam PF00704 / PF00082 profile; catalytic sites located on the HMM consensus; c70 clusters):
+  GH18 (sites D1, D4, D6, E8): regions covering all sites / all canonical / canonical given coverage = baseline 97.6 / 83.5 / 85.5 %; new-known 98.2 / 84.2 / 85.8 %;
+  new-novel 93.1 / 74.4 / 79.8 % (65,500 / 175,122 / 13,169 regions). S08 (Asp, His, Ser): baseline 90.9 / 66.8 / 73.5 %; new-known 93.6 / 70.3 / 75.1 %; new-novel
+  70.2 / 44.8 / 63.9 % (64,787 / 183,064 / 17,126). Asp and Ser are canonical in 98-99.8 % of every group; the His position is only 74-75 % canonical even in
+  baseline (the site is variable across S8 subfamilies or the HMM column is imperfect), so use the His column only for relative comparison (novel 65 % vs 74-75 %).
+  Reading: novel regions are far more often truncated (S08: 30 % lack a site vs 6-9 %), which explains most of the intact-motif deficit; among spanning regions
+  novel ones are 6 (GH18) to 10 (S08) points less often fully canonical. Novel S08 hits are therefore mostly fragments or divergent subtilisin-like proteins,
+  consistent with the earlier regex result and the likely false-hit S08 on carboxylases; they are not evidence of new catalytically active enzymes.
 - Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
-  survivor labels / breadth / triage / sensitive search (>= 5 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null, split-sample test,
-  approximate-motif / architecture analysis, lifestyle correlates. Pending when written: full 2-4-genome sensitive search (job 31830779). Not done: structure prediction
-  (cannot fit before the 2026-11-10 shutdown), alignment-based catalytic-residue analysis (in progress), antiSMASH/BGC, HGT.
+  survivor labels / breadth / triage / sensitive search (>= 5 genomes, 2-4 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null,
+  split-sample test, alignment-based catalytic analysis (GH18, S08), lifestyle correlates. Not done: structure prediction (cannot fit before the 2026-11-10 shutdown),
+  antiSMASH/BGC, HGT, per-order F3c ranking, search of the remaining 1-genome clusters beyond the 1 M sample.
 
 ## 12. What the old design showed and why it changed
 
