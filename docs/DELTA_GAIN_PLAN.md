@@ -321,9 +321,16 @@ The project succeeds if each of these holds:
   2-4 genomes 4.2 % (1.18 M), >= 5 genomes 4.1 % (0.45 M) vs 5.2 % for 2.72 M background proteins (hash sample, non-survivors); >= 40 % identity 1.0-1.3 % vs 1.3 %. Fungal best hit 75-79 %.
   **No enrichment of prokaryote-like hits among novel proteins** (no evidence of a large HGT / contamination pool). Limits: only proteins with a Swiss-Prot hit (< 50 % of
   survivors), no phylogeny, so individual transfers are not tested.
+- Structure pilot (user-approved small pilot; `bin/structure_pilot_*.py`, `launch/structure_pilot.sbatch`, results `results/structure_pilot/`): ESMFold (Hugging Face
+  `facebook/esmfold_v1`, single sequence, RTX 6000 Ada on the exfab partition, ~8-14 min per 400 proteins) on 400 random representatives of no-hit profile clusters (>= 20
+  members, 100-400 aa, mean length 150) and a control of 400 representatives of profile clusters that DID gain a baseline hit (same filters, mean length 190). Mean pLDDT
+  (0-1 scale): **no-hit 0.372 (median 0.34; 0.8 % >= 0.7, 8.8 % >= 0.5) vs hit-bearing control 0.440 (median 0.40; 6.3 % >= 0.7, 27.3 % >= 0.5)**. Novel no-hit proteins are
+  predicted with lower confidence than homolog-bearing ones, but both are low (single-sequence ESMFold is weak on shallow fungal families), and length differs between the sets, so
+  this is consistent with, not proof of, disorder / orphan / spurious-model status. Only ~9 % of no-hit representatives reach a confident fold, so a full-scale structure search
+  would test at most that subset. Not run at scale (cannot finish before the 2026-11-10 shutdown; no foldseek search done).
 - Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
   survivor labels / breadth / triage / sensitive search (>= 5 genomes, 2-4 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null,
-  split-sample test, alignment-based catalytic analysis (GH18, S08), lifestyle correlates. Not done: structure prediction (cannot fit before the 2026-11-10 shutdown),
+  split-sample test, alignment-based catalytic analysis (GH18, S08), lifestyle correlates. Structure prediction run only as a 400+400 ESMFold pilot (full run cannot fit before the 2026-11-10 shutdown). Not done:
   antiSMASH itself (replaced by the BGC-backbone proxy), phylogeny-based HGT (replaced by the Swiss-Prot taxonomy proxy), per-order F3c ranking, search of the remaining 1-genome clusters beyond the 1 M sample.
 
 ## 12. What the old design showed and why it changed
