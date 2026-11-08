@@ -97,7 +97,7 @@ def cluster_family(key, regions_dir, outdir, a):
                 fh.write(f">{i}\n{seqs[i]}\n")
         run(f"{mm} createdb {rf} {work}/R{k} -v 1")
         run(f"{mm} cluster {work}/R{k} {work}/c{k} {work}/tmp{k} --min-seq-id {ident} -c {a.cov} "
-            f"--cov-mode 0 -s {a.sens} --threads {th} -v 1")
+            f"--cov-mode {a.cov_mode} -s {a.sens} --threads {th} -v 1")
         run(f"{mm} createtsv {work}/R{k} {work}/R{k} {work}/c{k} {work}/c{k}.tsv --threads {th} -v 1")
         step = read_pairs(os.path.join(work, f"c{k}.tsv"))
         later.append(step)
@@ -161,6 +161,8 @@ def main(argv=None):
     ap.add_argument("--tiers", type=float, nargs="+", default=[0.90, 0.70, 0.50, 0.30])
     ap.add_argument("--cov0", type=float, default=0.90, help="tier-0 coverage (target-covers, mode 1)")
     ap.add_argument("--cov", type=float, default=0.80, help="later tiers, bidirectional (mode 0)")
+    ap.add_argument("--cov-mode", type=int, default=0, choices=[0, 1, 2],
+                    help="mmseqs --cov-mode for the later tiers: 0 bidirectional (default), 1 target, 2 query (E9 sensitivity)")
     ap.add_argument("--sens", default="6")
     ap.add_argument("--mmseqs", default="mmseqs")
     ap.add_argument("--threads", type=int, default=8)

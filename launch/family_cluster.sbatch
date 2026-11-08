@@ -26,5 +26,6 @@ mkdir -p "$OUT"; TMP=${SCRATCH:-$OUT}/_tmp.$KEY.$$; mkdir -p "$TMP"; trap "rm -r
 echo "[$(date)] cluster $KEY"
 $PY -I $DG/bin/family_cluster.py --regions-dir "$REGIONS" --outdir "$OUT" --tables-dir "$TABLES" \
   --classes "$CLASSES" --families "$KEY" --threads $SLURM_CPUS_PER_TASK --tmp-dir "$TMP" \
+  ${COV:+--cov $COV} ${COVMODE:+--cov-mode $COVMODE} \
   --mmseqs "apptainer exec --bind /bigdata --bind $TMP $SIF mmseqs"
 echo "[$(date)] done"

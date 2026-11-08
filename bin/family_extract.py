@@ -30,6 +30,8 @@ import multiprocessing as mp
 
 import duckdb
 
+PFAM_COLS = {"env": ("env_from", "env_to"), "ali": ("ali_from", "ali_to")}  # --pfam-region
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import family_census  # noqa: E402
 
@@ -72,7 +74,7 @@ def fetch_members(con, a, specs):
     if pf:
         ids = ",".join(f"'{x}'" for x in pf)
         q = con.execute(f"""
-          select split_part(pfam_acc, '.', 1), protein_id, env_from, env_to, domain_score,
+          select split_part(pfam_acc, '.', 1), protein_id, {PFAM_COLS[a.pfam_region][0]}, {PFAM_COLS[a.pfam_region][1]}, domain_score,
                  domain_i_evalue, hmm_from, hmm_to, pfam_len
           from read_parquet('{t}/pfam.parquet')
           where split_part(pfam_acc, '.', 1) in ({ids}) and {pre} in (select prefix from gsel)""")
@@ -183,6 +185,8 @@ def main(argv=None):
                          "(g_new >= 100, q_species < 0.01)")
     ap.add_argument("--auto-levels", nargs="*", default=[],
                     help="add EVERY family of these census levels, e.g. cazy_family merops_family")
+    ap.add_argument("--pfam-region", choices=["env", "ali"], default="env",
+                    help="Pfam region = envelope (default) or alignment span (E9 sensitivity)")
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--memory-limit", default="32GB")
     ap.add_argument("--tmp-dir", default=None)
