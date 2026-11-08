@@ -309,10 +309,22 @@ The project succeeds if each of these holds:
   Reading: novel regions are far more often truncated (S08: 30 % lack a site vs 6-9 %), which explains most of the intact-motif deficit; among spanning regions
   novel ones are 6 (GH18) to 10 (S08) points less often fully canonical. Novel S08 hits are therefore mostly fragments or divergent subtilisin-like proteins,
   consistent with the earlier regex result and the likely false-hit S08 on carboxylases; they are not evidence of new catalytically active enzymes.
+- BGC-backbone proxy (user-approved substitute for antiSMASH, which cannot finish for 23.5 k genomes before the shutdown; `launch/bgc_run.sh`, results `results/family_*_bgc`):
+  10 secondary-metabolism backbone / tailoring Pfams (ketosynthase PF00109, AMP-binding PF00501, condensation PF00668, acyltransferase PF00698, thioesterase PF00975,
+  UbiA prenyltransferase PF01040, terpene synthase C PF03936 and PF19086, ketoreductase PF08659, dehydratase PF14765; PF01397 had no regions) through F1-F3 (regions
+  from 0.01-2.0 M per family). Baseline-vs-baseline null with matched genome counts (307 and 1,010 genomes per side): the novel fraction of new genomes minus the null
+  at c70 is -1.3 to +2.3 points, every 95 % interval spans 0 except ketoreductase PF08659 (+0.9 points, [0.0, 1.8], at 1,010 genomes; +0.2 at c50). **New genomes add no more
+  backbone-enzyme diversity than the same number of baseline genomes**, matching the CAZy/MEROPS/random-Pfam pattern; secondary-metabolism backbones are not a hotspot of
+  new protein-level diversity. Limits: Pfam backbone domains only (no cluster context, no product prediction); terpene synthases (PF03936) have wide intervals (1.4 k baseline genomes).
+- HGT proxy (user-approved substitute for a phylogeny-based screen; `bin/hgt_proxy.py`, NCBI taxdump, results `results/hgt_proxy`): best Swiss-Prot hit (e <= 1e-5, qcov >= 0.5)
+  of survivor representatives, grouped by taxonomy of the hit organism, metagenome-bin genomes excluded. Prokaryote best hit: survivors in 1 genome 4.8 % (2.99 M with hit),
+  2-4 genomes 4.2 % (1.18 M), >= 5 genomes 4.1 % (0.45 M) vs 5.2 % for 2.72 M background proteins (hash sample, non-survivors); >= 40 % identity 1.0-1.3 % vs 1.3 %. Fungal best hit 75-79 %.
+  **No enrichment of prokaryote-like hits among novel proteins** (no evidence of a large HGT / contamination pool). Limits: only proteins with a Swiss-Prot hit (< 50 % of
+  survivors), no phylogeny, so individual transfers are not tested.
 - Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
   survivor labels / breadth / triage / sensitive search (>= 5 genomes, 2-4 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null,
   split-sample test, alignment-based catalytic analysis (GH18, S08), lifestyle correlates. Not done: structure prediction (cannot fit before the 2026-11-10 shutdown),
-  antiSMASH/BGC, HGT, per-order F3c ranking, search of the remaining 1-genome clusters beyond the 1 M sample.
+  antiSMASH itself (replaced by the BGC-backbone proxy), phylogeny-based HGT (replaced by the Swiss-Prot taxonomy proxy), per-order F3c ranking, search of the remaining 1-genome clusters beyond the 1 M sample.
 
 ## 12. What the old design showed and why it changed
 
