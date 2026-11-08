@@ -14,6 +14,7 @@ ap.add_argument("--min-genomes", type=int, default=5)
 ap.add_argument("--max-genomes", type=int, default=0, help="0 = no upper bound")
 ap.add_argument("--sample", type=int, default=0, help="random sample of N eligible queries (seed 5)")
 ap.add_argument("--max-query", type=int, default=0, help="0 = all; else keep the first N queries (test runs)")
+ap.add_argument("--shard", default="", help="i/n: keep queries with crc32(rep) % n == i")
 ap.add_argument("--out-query", required=True)
 ap.add_argument("--out-target", required=True)
 a = ap.parse_args()
@@ -29,6 +30,10 @@ if a.sample and len(qset) > a.sample:
     import random
     random.seed(5)
     qset = set(random.sample(sorted(qset), a.sample))
+if a.shard:
+    import zlib
+    si, sn = (int(x) for x in a.shard.split("/"))
+    qset = {r for r in qset if zlib.crc32(r.encode()) % sn == si}
 print("survivor clusters", len(allsurv), "queries", len(qset), file=sys.stderr)
 nq = nt = 0
 out = None

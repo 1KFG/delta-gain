@@ -26,7 +26,7 @@ cd "$OUT"
 if [[ ! -s query.faa ]]; then
   echo "[$(date)] split"
   $PY -I $DG/bin/survivor_split.py --reps $FUN/tier_50_reps.faa --survivors $FUN/summary/survivors_clusters.tsv \
-     --min-genomes $MING --max-genomes $MAXG --sample $SAMPLE --max-query $MAXQ --out-query query.faa --out-target target.faa
+     --min-genomes $MING --max-genomes $MAXG --sample $SAMPLE --max-query $MAXQ ${SHARD:+--shard $SHARD} --out-query query.faa --out-target target.faa
 fi
 echo "[$(date)] createdb"
 $MMSEQS createdb query.faa "$TMP/q" -v 1

@@ -328,10 +328,16 @@ The project succeeds if each of these holds:
   predicted with lower confidence than homolog-bearing ones, but both are low (single-sequence ESMFold is weak on shallow fungal families), and length differs between the sets, so
   this is consistent with, not proof of, disorder / orphan / spurious-model status. Only ~9 % of no-hit representatives reach a confident fold, so a full-scale structure search
   would test at most that subset. Not run at scale (cannot finish before the 2026-11-10 shutdown; no foldseek search done).
+- Full sensitive search of ALL single-genome survivor clusters (2026-11-08; 3 hash shards 0/1/2 of 3 via `survivor_split.py --shard`, 3.9-5.2 h each; replaces the 1 M sample):
+  12,238,825 clusters / 13,085,018 proteins; by clusters **63.0 % homolog (7,709,625), 12.8 % close low-identity (1,569,032), 2.9 % distant (357,625), 21.3 % no hit
+  (2,602,543 clusters, 2.85 M proteins = 21.8 % of proteins)**. The 1 M sample (63.0 / 12.8 / 2.9 / 21.2 %) predicted this closely. The three shards agree to
+  +-0.1 point, so the result is stable. Across all survivor classes the no-hit share is 10.7 % (>= 5 genomes), 12.8 % (2-4) and 21.3 % (1 genome); the no-hit survivor
+  pool searched by sensitive search is therefore 133,599 + 460,890 + 2,602,543 = about 3.2 M clusters, dominated by single-genome clusters (likely enriched for gene-model
+  artefacts and very recent lineage-specific genes).
 - Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
-  survivor labels / breadth / triage / sensitive search (>= 5 genomes, 2-4 genomes, singleton sample), profile search of no-hit clusters, F3c class-matched null,
+  survivor labels / breadth / triage / sensitive search (>= 5 genomes, 2-4 genomes, all single-genome clusters), profile search of no-hit clusters, F3c class-matched null,
   split-sample test, alignment-based catalytic analysis (GH18, S08), lifestyle correlates. Structure prediction run only as a 400+400 ESMFold pilot (full run cannot fit before the 2026-11-10 shutdown). Not done:
-  antiSMASH itself (replaced by the BGC-backbone proxy), phylogeny-based HGT (replaced by the Swiss-Prot taxonomy proxy), per-order F3c ranking, search of the remaining 1-genome clusters beyond the 1 M sample.
+  antiSMASH itself (replaced by the BGC-backbone proxy), phylogeny-based HGT (replaced by the Swiss-Prot taxonomy proxy), per-order F3c ranking.
 
 ## 12. What the old design showed and why it changed
 
