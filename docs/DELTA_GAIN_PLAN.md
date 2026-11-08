@@ -334,10 +334,13 @@ The project succeeds if each of these holds:
   +-0.1 point, so the result is stable. Across all survivor classes the no-hit share is 10.7 % (>= 5 genomes), 12.8 % (2-4) and 21.3 % (1 genome); the no-hit survivor
   pool searched by sensitive search is therefore 133,599 + 460,890 + 2,602,543 = about 3.2 M clusters, dominated by single-genome clusters (likely enriched for gene-model
   artefacts and very recent lineage-specific genes).
-- Status 2026-11-07 (goal run): done: funnel, F0-F5 (717 families + subfamilies + random control), predictor control, rank decomposition, rarefaction,
-  survivor labels / breadth / triage / sensitive search (>= 5 genomes, 2-4 genomes, all single-genome clusters), profile search of no-hit clusters, F3c class-matched null,
-  split-sample test, alignment-based catalytic analysis (GH18, S08), lifestyle correlates. Structure prediction run only as a 400+400 ESMFold pilot (full run cannot fit before the 2026-11-10 shutdown). Not done:
-  antiSMASH itself (replaced by the BGC-backbone proxy), phylogeny-based HGT (replaced by the Swiss-Prot taxonomy proxy), per-order F3c ranking.
+- Status 2026-11-08 (goal closed by user decision): all planned analyses are done or covered by approved substitutes. Funnel, F0-F5 (717 families + subfamilies +
+  random control), predictor control, rank decomposition, rarefaction, F3b/F3c nulls, split-sample test, survivor labels / breadth / triage, sensitive search of all
+  survivor classes (>= 5, 2-4 and all single-genome clusters), profile search of no-hit clusters, alignment-based catalytic analysis (GH18, S08), lifestyle correlates.
+  **Out of scope by the user's decision (2026-11-08), given the 2026-11-10 shutdown:** (1) antiSMASH on all genomes - replaced by the BGC-backbone family proxy;
+  (2) phylogeny-based HGT - replaced by the Swiss-Prot taxonomy proxy; (3) full-scale structure prediction of the ~97 k no-hit profile clusters - replaced by the 400 + 400
+  ESMFold pilot (the no-hit representative list is `results/nohit_profile/profile_clusters.tsv`, usable as input for a later run elsewhere). Not done and not planned:
+  per-order F3c ranking.
 
 ## 12. What the old design showed and why it changed
 
