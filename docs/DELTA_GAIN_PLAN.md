@@ -334,6 +334,11 @@ The project succeeds if each of these holds:
   +-0.1 point, so the result is stable. Across all survivor classes the no-hit share is 10.7 % (>= 5 genomes), 12.8 % (2-4) and 21.3 % (1 genome); the no-hit survivor
   pool searched by sensitive search is therefore 133,599 + 460,890 + 2,602,543 = about 3.2 M clusters, dominated by single-genome clusters (likely enriched for gene-model
   artefacts and very recent lineage-specific genes).
+- Follow-up analyses E4 / E7 / E9 and findings synthesis (2026-11-08). **E4 species accumulation** (`bin/accumulation.py`, `results/accumulation/`): 2,778 baseline + 822 new-in-known-species + 4,632 new species units,
+  33.4 M tier-50 clusters; the curve is nearly linear (about 4.0-4.5 k new clusters per added species after the baseline, 2.7 k at the end), new species add about 1,870 clusters per genome vs about 350 for
+  strains of known species; new-first ordering reaches 13.5 M clusters at 2,778 species vs 16.2 M for baseline-first. **E7** (`docs/E7_RESULTS.md`): no secretome / SSP-candidate excess in new genomes or survivors; 19 CAZy/MEROPS
+  families expand and 23 contract per 1,000 proteins. **E9** (`docs/E9_RESULTS.md`): family-level new-minus-null differences are insensitive to coverage 60/80/90 %, cov-mode and Pfam region definition (5 families); enriched
+  PF10450 stays at about +0.10 at c70. The narrative synthesis is `docs/FINDINGS.md`.
 - Status 2026-11-08 (goal closed by user decision): all planned analyses are done or covered by approved substitutes. Funnel, F0-F5 (717 families + subfamilies +
   random control), predictor control, rank decomposition, rarefaction, F3b/F3c nulls, split-sample test, survivor labels / breadth / triage, sensitive search of all
   survivor classes (>= 5, 2-4 and all single-genome clusters), profile search of no-hit clusters, alignment-based catalytic analysis (GH18, S08), lifestyle correlates.
